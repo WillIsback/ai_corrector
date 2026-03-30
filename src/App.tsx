@@ -47,7 +47,7 @@ function App() {
 
   const handleCopySuccess = (text: string) => {
     navigator.clipboard.writeText(text)
-    setToast({ id: 'copy-success', message: 'Texte copié dans le presse-papier !', type: 'success' })
+    setToast({ id: `copy-${Date.now()}-${Math.random().toString(36).substring(7)}`, message: 'Texte copié dans le presse-papier !', type: 'success' })
   }
 
 
