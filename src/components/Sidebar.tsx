@@ -161,7 +161,7 @@ export function Sidebar({ settings, setSettings }: Props) {
             type="checkbox"
             checked={settings.ltEnabled}
             onChange={(e) => setSettings({ ...settings, ltEnabled: e.target.checked })}
-            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"
+            className="rounded border-gray-300 text-orange-600 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700"
           />
           <span className="text-sm font-medium text-gray-900 dark:text-gray-100">Activer LanguageTool</span>
         </label>
