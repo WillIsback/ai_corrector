@@ -28,3 +28,11 @@ export interface CorrectionResult {
   diff: DiffChunk[];
   stats: CorrectionStats;
 }
+
+export type ToastType = 'success' | 'error' | 'warning'
+
+export interface Toast {
+  id: string
+  message: string
+  type: ToastType
+}
