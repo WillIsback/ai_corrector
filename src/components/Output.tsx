@@ -2,13 +2,14 @@ import { DiffChunk } from '../types'
 
 interface Props {
   diffChunks: DiffChunk[]
-  stats: { processingTime: number; modificationCount: number }
+  stats: { processingTime: number; modificationCount: number; ltPreCorrections: number; ltPostCorrections: number }
   onCopy: (text: string) => void
   onReset: () => void
   isLoading: boolean
+  ltWarning?: string | null
 }
 
-export function Output({ diffChunks, stats, onCopy, onReset, isLoading }: Props) {
+export function Output({ diffChunks, stats, onCopy, onReset, isLoading, ltWarning }: Props) {
   const handleCopy = () => {
     const text = diffChunks.map(chunk => chunk.text).join('')
     onCopy(text)
@@ -37,23 +38,27 @@ export function Output({ diffChunks, stats, onCopy, onReset, isLoading }: Props)
           ) : (
             <p className="text-lg leading-relaxed text-gray-800 dark:text-gray-200">
               {diffChunks.map((chunk, index) => {
-                switch (chunk.type) {
-                  case 'added':
-                    return (
-                      <span key={index} className="bg-green-100 dark:bg-green-900 text-green-900 dark:text-green-200 px-0.5 rounded">
-                        {chunk.text}
-                      </span>
-                    )
-                  case 'removed':
-                    return (
-                      <del key={index} className="text-red-600 dark:text-red-400">
-                        {chunk.text}
-                      </del>
-                    )
-
-                  default:
-                    return <span key={index}>{chunk.text}</span>
+                if (chunk.type === 'removed') {
+                  return (
+                    <del key={index} className="text-red-600 dark:text-red-400">
+                      {chunk.text}
+                    </del>
+                  );
                 }
+                
+                if (chunk.type === 'added') {
+                  const colorClass = chunk.source === 'llm' 
+                    ? 'bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-200'
+                    : 'bg-orange-100 dark:bg-orange-900 text-orange-900 dark:text-orange-200';
+                  
+                  return (
+                    <span key={index} className={`px-0.5 rounded ${colorClass}`}>
+                      {chunk.text}
+                    </span>
+                  );
+                }
+                
+                return <span key={index}>{chunk.text}</span>;
               })}
             </p>
           )}
@@ -61,9 +66,9 @@ export function Output({ diffChunks, stats, onCopy, onReset, isLoading }: Props)
         
         {diffChunks.length > 0 && (
           <>
-            <div className="mt-6 grid grid-cols-2 gap-4">
+            <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Temps de traitement</h3>
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Temps</h3>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.processingTime}ms</p>
               </div>
               
@@ -71,7 +76,29 @@ export function Output({ diffChunks, stats, onCopy, onReset, isLoading }: Props)
                 <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Modifications</h3>
                 <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.modificationCount}</p>
               </div>
+
+              {stats.ltPreCorrections > 0 && (
+                <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+                  <h3 className="text-sm font-semibold text-orange-600 dark:text-orange-400 mb-1">LT Pré</h3>
+                  <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">{stats.ltPreCorrections}</p>
+                </div>
+              )}
+
+              {stats.ltPostCorrections > 0 && (
+                <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+                  <h3 className="text-sm font-semibold text-orange-600 dark:text-orange-400 mb-1">LT Post</h3>
+                  <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">{stats.ltPostCorrections}</p>
+                </div>
+              )}
             </div>
+
+            {ltWarning && (
+              <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded-lg">
+                <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                  ⚠️ {ltWarning}
+                </p>
+              </div>
+            )}
             
             <div className="mt-6 flex gap-4">
               <button
