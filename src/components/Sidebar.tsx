@@ -1,4 +1,5 @@
 import { CorrectionMode, CorrectionSettings } from '../types'
+import React from 'react'
 
 interface Props {
   settings: CorrectionSettings
@@ -13,6 +14,8 @@ const modeLabels: Record<CorrectionMode, string> = {
 }
 
 export function Sidebar({ settings, setSettings }: Props) {
+  const modeKeys = Object.keys(modeLabels) as CorrectionMode[]
+
   const handleModeChange = (newMode: CorrectionMode) => {
     setSettings({ ...settings, mode: newMode })
   }
@@ -21,23 +24,60 @@ export function Sidebar({ settings, setSettings }: Props) {
     setSettings({ ...settings, [setting]: value })
   }
 
+  const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
+    switch (e.key) {
+      case 'ArrowRight':
+      case 'ArrowDown': {
+        e.preventDefault()
+        handleModeChange(modeKeys[(index + 1) % modeKeys.length])
+        break
+      }
+      case 'ArrowLeft':
+      case 'ArrowUp': {
+        e.preventDefault()
+        handleModeChange(modeKeys[(index - 1 + modeKeys.length) % modeKeys.length])
+        break
+      }
+      case 'Enter':
+      case ' ': {
+        e.preventDefault()
+        handleModeChange(modeKeys[index])
+        break
+      }
+    }
+  }
+
   return (
     <aside className="w-64 bg-gray-50 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 p-6 overflow-y-auto">
       <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Mode de correction</h2>
       
-      <div className="space-y-2">
-        {Object.entries(modeLabels).map(([key, label]) => (
-          <label key={key} className="flex items-center gap-2">
+      <div role="radiogroup" aria-label="Mode de correction" className="space-y-2">
+        {modeKeys.map((key, index) => (
+          <div key={key} className="flex items-center gap-2">
             <input
               type="radio"
+              id={`mode-${key}`}
               name="mode"
               value={key}
               checked={settings.mode === key}
-              onChange={() => handleModeChange(key as CorrectionMode)}
-              className="text-blue-600 focus:ring-blue-500 dark:text-blue-400 dark:focus:ring-blue-300"
+              onChange={() => handleModeChange(key)}
+              className="peer sr-only"
             />
-            <span className="text-gray-900 dark:text-gray-100">{label}</span>
-          </label>
+            <label
+              htmlFor={`mode-${key}`}
+              role="radio"
+              tabIndex={0}
+              aria-checked={settings.mode === key}
+              onKeyDown={(e) => handleKeyDown(index, e)}
+              onClick={() => handleModeChange(key)}
+              className="flex items-center gap-2 cursor-pointer p-2 rounded-lg border-2 transition-all duration-200
+                peer-checked:border-blue-600 peer-checked:bg-blue-50 dark:peer-checked:bg-blue-900/30
+                border-transparent hover:border-gray-300 dark:hover:border-gray-600
+                text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            >
+              <span className="text-base">{modeLabels[key]}</span>
+            </label>
+          </div>
         ))}
       </div>
 
