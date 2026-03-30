@@ -49,12 +49,7 @@ export function Output({ diffChunks, stats, onCopy, onReset }: Props) {
                         {chunk.text}
                       </del>
                     )
-                  case 'modified':
-                    return (
-                      <span key={index} className="bg-yellow-100 dark:bg-yellow-900 text-yellow-900 dark:text-yellow-200 px-0.5 rounded">
-                        {chunk.text}
-                      </span>
-                    )
+
                   default:
                     return <span key={index}>{chunk.text}</span>
                 }

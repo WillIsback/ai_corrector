@@ -13,7 +13,7 @@ export interface CorrectionSettings {
 }
 
 export interface DiffChunk {
-  type: 'unchanged' | 'added' | 'removed' | 'modified';
+  type: 'unchanged' | 'added' | 'removed';
   text: string;
 }
 

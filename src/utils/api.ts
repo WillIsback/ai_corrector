@@ -3,6 +3,43 @@ import { CorrectionMode, CorrectionSettings } from '../types'
 // Module-level ref to store the current AbortController for cleanup
 let currentAbortController: AbortController | null = null
 
+/**
+ * Abort any ongoing API request
+ */
+export function abortOngoingRequest() {
+  currentAbortController?.abort()
+  currentAbortController = null
+}
+
+// Maximum content length to prevent prompt injection and abuse
+const MAX_CONTENT_LENGTH = 10000
+
+/**
+ * Sanitizes user input text for LLM processing
+ * - Removes control characters (except newlines and tabs)
+ * - Truncates to MAX_CONTENT_LENGTH
+ * - Validates non-empty
+ */
+function sanitizeInput(text: string): string {
+  // Trim leading/trailing whitespace
+  const trimmed = text.trim()
+  
+  if (trimmed.length === 0) {
+    throw new Error('Le texte ne peut pas être vide')
+  }
+  
+  // Remove control characters except newlines (\n) and tabs (\t)
+  // This prevents prompt injection via control characters
+  const sanitized = trimmed.replace(/[^\x09\x0A\x0D\x20-\xFF]/g, '')
+  
+  // Truncate to max length
+  if (sanitized.length > MAX_CONTENT_LENGTH) {
+    return sanitized.substring(0, MAX_CONTENT_LENGTH)
+  }
+  
+  return sanitized
+}
+
 export interface LLMRequest {
   model: string
   messages: Array<{
@@ -32,7 +69,7 @@ export async function correctText(
   settings: CorrectionSettings
 ): Promise<string> {
   const systemPrompt = buildSystemPrompt(settings)
-  const userPrompt = text
+  const userPrompt = sanitizeInput(text)
 
   const request: LLMRequest = {
     model: 'auto',
