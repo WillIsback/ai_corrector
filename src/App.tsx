@@ -84,7 +84,15 @@ function App() {
       
       {error && (
         <div className="bg-red-50 dark:bg-red-900/20 border-t border-red-200 dark:border-red-800 px-6 py-4">
-          <p className="text-red-700 dark:text-red-400 text-center max-w-4xl mx-auto">{error}</p>
+          <div className="flex items-center justify-between max-w-4xl mx-auto">
+            <p className="text-red-700 dark:text-red-400">{error}</p>
+            <button
+              onClick={handleCorrect}
+              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors duration-200"
+            >
+              Retry
+            </button>
+          </div>
         </div>
       )}
     </div>
