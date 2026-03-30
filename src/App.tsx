@@ -4,7 +4,9 @@ import { Sidebar } from './components/Sidebar'
 import { Editor } from './components/Editor'
 import { Output } from './components/Output'
 import { Toast } from './components/Toast'
+import { LTSetupBanner } from './components/LTSetupBanner'
 import { useCorrector } from './hooks/useCorrector'
+import { useLanguageTool } from './hooks/useLanguageTool'
 
 function App() {
   const {
@@ -19,6 +21,8 @@ function App() {
     handleCorrect,
     handleReset,
   } = useCorrector()
+
+  const { isAvailable: ltAvailable } = useLanguageTool()
 
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
@@ -52,6 +56,7 @@ function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-200">
+      {!ltAvailable && <LTSetupBanner />}
       <Header 
         theme={theme} 
         onToggleTheme={() => setTheme(theme === 'light' ? 'dark' : 'light')}
