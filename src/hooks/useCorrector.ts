@@ -63,6 +63,12 @@ export function useCorrector() {
 
     try {
       const corrected = await correctText(textContent, settings)
+      
+      // Validate API response
+      if (!corrected || corrected.trim().length === 0) {
+        throw new Error('LLM returned empty response')
+      }
+      
       const diff = computeDiff(textContent, corrected)
 
       const modifications = diff.filter(chunk => chunk.type !== 'unchanged').length
