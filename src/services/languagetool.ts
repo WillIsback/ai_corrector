@@ -9,6 +9,13 @@ export interface LTCheckResult {
 }
 
 export async function checkLanguageTool(text: string): Promise<LTCheckResult> {
+  if (!text.trim()) {
+    throw new Error('Le texte ne peut pas être vide');
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000);
+  
   const response = await fetch(`${LT_API_BASE}/v2/check`, {
     method: 'POST',
     headers: {
@@ -18,10 +25,13 @@ export async function checkLanguageTool(text: string): Promise<LTCheckResult> {
       text,
       language: 'fr',
     }),
+    signal: controller.signal,
   });
 
+  clearTimeout(timeoutId);
+
   if (!response.ok) {
-    throw new Error(`LanguageTool API error: ${response.status}`);
+    throw new Error(`LanguageTool API error: ${response.status}. Vérifiez que le serveur LT tourne sur ${LT_API_BASE}`);
   }
 
   const data: LTResponse = await response.json();
