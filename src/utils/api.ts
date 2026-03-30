@@ -1,5 +1,8 @@
 import { CorrectionMode, CorrectionSettings } from '../types'
 
+// Module-level ref to store the current AbortController for cleanup
+let currentAbortController: AbortController | null = null
+
 export interface LLMRequest {
   model: string
   messages: Array<{
@@ -40,11 +43,17 @@ export async function correctText(
     temperature: 0.3,
   }
 
+  // Cancel any ongoing request before starting a new one
+  currentAbortController?.abort()
   const controller = new AbortController()
+  currentAbortController = controller
+
   const timeoutId = setTimeout(() => controller.abort(), 30000)
 
   try {
-    const response = await fetch('http://localhost:30000/v1/chat/completions', {
+    const baseUrl = import.meta.env.VITE_LLM_API_BASE_URL || 'http://localhost:30000'
+    const apiPath = import.meta.env.VITE_LLM_API_PATH || '/v1/chat/completions'
+    const response = await fetch(baseUrl + apiPath, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -55,6 +64,9 @@ export async function correctText(
     })
 
     clearTimeout(timeoutId)
+
+    // Clean up the ref after completion
+    currentAbortController = null
 
     if (!response.ok) {
       throw new Error(`API error: ${response.status}`)
