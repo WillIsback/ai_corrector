@@ -61,12 +61,12 @@ function App() {
       />
       
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar 
-          mode={mode} 
-          setMode={setMode}
-          settings={settings}
-          setSettings={setSettings}
-        />
+      <Sidebar 
+        mode={mode} 
+        setMode={setMode}
+        settings={settings}
+        setSettings={setSettings}
+      />
         
         <Editor 
           text={textContent}
@@ -80,6 +80,7 @@ function App() {
           stats={stats}
           onCopy={handleCopySuccess}
           onReset={handleReset}
+          isLoading={isLoading}
         />
       </div>
 

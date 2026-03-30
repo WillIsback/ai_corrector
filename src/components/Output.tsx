@@ -5,9 +5,10 @@ interface Props {
   stats: { processingTime: number; modificationCount: number }
   onCopy: (text: string) => void
   onReset: () => void
+  isLoading: boolean
 }
 
-export function Output({ diffChunks, stats, onCopy, onReset }: Props) {
+export function Output({ diffChunks, stats, onCopy, onReset, isLoading }: Props) {
   const handleCopy = () => {
     const text = diffChunks.map(chunk => chunk.text).join('')
     onCopy(text)
@@ -79,12 +80,14 @@ export function Output({ diffChunks, stats, onCopy, onReset }: Props) {
               >
                 📋 Copier le texte
               </button>
-              <button
-                onClick={onReset}
-                className="px-6 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-white rounded-lg font-semibold transition-colors"
-              >
-                🔄 Réinitialiser
-              </button>
+              {!isLoading && (
+                <button
+                  onClick={onReset}
+                  className="px-6 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-white rounded-lg font-semibold transition-colors"
+                >
+                  🔄 Réinitialiser
+                </button>
+              )}
             </div>
           </>
         )}
