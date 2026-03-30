@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+
 
 interface Props {
   theme: 'light' | 'dark'
@@ -7,11 +7,7 @@ interface Props {
 }
 
 export function Header({ theme, onToggleTheme, onOpenSettings }: Props) {
-  const [isDark, setIsDark] = useState(theme === 'dark')
-
-  useEffect(() => {
-    setIsDark(theme === 'dark')
-  }, [theme])
+  const isDark = theme === 'dark'
 
   return (
     <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
