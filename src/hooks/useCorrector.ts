@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react'
-import { correctText } from '../utils/api'
+import { correctText, abortOngoingRequest } from '../utils/api'
 import { computeDiff } from '../utils/diff'
 import { CorrectionMode, CorrectionSettings, DiffChunk, CorrectionStats } from '../types'
 
@@ -87,6 +87,8 @@ export function useCorrector() {
       }
     } finally {
       setIsLoading(false)
+      setError(null)
+      abortOngoingRequest()
     }
   }, [textContent, mode, settings])
 
