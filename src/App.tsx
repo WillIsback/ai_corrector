@@ -11,8 +11,6 @@ function App() {
     textContent,
     setTextContent,
     diffChunks,
-    mode,
-    setMode,
     settings,
     setSettings,
     isLoading,
@@ -61,12 +59,10 @@ function App() {
       />
       
       <div className="flex flex-1 overflow-hidden">
-      <Sidebar 
-        mode={mode} 
-        setMode={setMode}
-        settings={settings}
-        setSettings={setSettings}
-      />
+        <Sidebar 
+          settings={settings}
+          setSettings={setSettings}
+        />
         
         <Editor 
           text={textContent}

@@ -1,13 +1,12 @@
 import { useState, useCallback, useEffect } from 'react'
 import { correctText, abortOngoingRequest } from '../utils/api'
 import { computeDiff } from '../utils/diff'
-import { CorrectionMode, CorrectionSettings, DiffChunk, CorrectionStats } from '../types'
+import { CorrectionSettings, DiffChunk, CorrectionStats } from '../types'
 
 export function useCorrector() {
   const [textContent, setTextContent] = useState('')
   const [outputText, setOutputText] = useState('')
   const [diffChunks, setDiffChunks] = useState<DiffChunk[]>([])
-  const [mode, setMode] = useState<CorrectionMode>('formel')
   const [settings, setSettings] = useState<CorrectionSettings>({
     mode: 'formel',
     fixGrammar: true,
@@ -27,29 +26,16 @@ export function useCorrector() {
     
     if (savedSettings) {
       try {
-        const parsed = JSON.parse(savedSettings)
-        // Preserve mode from localStorage if not in settings
-        const savedMode = localStorage.getItem('ai-corrector:mode')
-        if (savedMode && !parsed.mode) {
-          parsed.mode = savedMode as CorrectionMode
-        }
-        setSettings(parsed)
+        setSettings(JSON.parse(savedSettings))
       } catch {
         // Use defaults
       }
-    }
-    
-    // Load saved mode from localStorage
-    const savedMode = localStorage.getItem('ai-corrector:mode')
-    if (savedMode) {
-      setMode(savedMode as CorrectionMode)
     }
   }, [])
 
   useEffect(() => {
     localStorage.setItem('ai-corrector:settings', JSON.stringify(settings))
-    localStorage.setItem('ai-corrector:mode', mode)
-  }, [settings.mode, mode])
+  }, [settings.mode])
 
   const handleCorrect = useCallback(async () => {
     if (!textContent.trim()) {
@@ -109,9 +95,6 @@ export function useCorrector() {
     setTextContent,
     outputText,
     diffChunks,
-    
-    mode,
-    setMode,
     settings,
     setSettings,
     isLoading,

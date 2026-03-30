@@ -1,8 +1,6 @@
 import { CorrectionMode, CorrectionSettings } from '../types'
 
 interface Props {
-  mode: CorrectionMode
-  setMode: (mode: CorrectionMode) => void
   settings: CorrectionSettings
   setSettings: (settings: CorrectionSettings) => void
 }
@@ -14,13 +12,12 @@ const modeLabels: Record<CorrectionMode, string> = {
   technical: 'Technical / Clair',
 }
 
-export function Sidebar({ mode, setMode, settings, setSettings }: Props) {
+export function Sidebar({ settings, setSettings }: Props) {
   const handleModeChange = (newMode: CorrectionMode) => {
-    setMode(newMode)
     setSettings({ ...settings, mode: newMode })
   }
 
-  const handleSettingChange = (setting: keyof typeof settings, value: boolean) => {
+  const handleSettingChange = (setting: keyof CorrectionSettings, value: boolean) => {
     setSettings({ ...settings, [setting]: value })
   }
 
@@ -35,7 +32,7 @@ export function Sidebar({ mode, setMode, settings, setSettings }: Props) {
               type="radio"
               name="mode"
               value={key}
-              checked={mode === key}
+              checked={settings.mode === key}
               onChange={() => handleModeChange(key as CorrectionMode)}
               className="text-blue-600 focus:ring-blue-500 dark:text-blue-400 dark:focus:ring-blue-300"
             />
