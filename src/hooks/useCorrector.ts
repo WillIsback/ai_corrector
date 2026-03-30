@@ -80,7 +80,7 @@ export function useCorrector() {
       setError(null)
       abortOngoingRequest()
     }
-  }, [textContent, settings])
+  }, [settings])
 
   const handleReset = useCallback(() => {
     setTextContent('')
