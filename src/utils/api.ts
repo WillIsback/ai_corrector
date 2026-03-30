@@ -71,8 +71,10 @@ export async function correctText(
   const systemPrompt = buildSystemPrompt(settings)
   const userPrompt = sanitizeInput(text)
 
+  const model = import.meta.env.VITE_LLM_MODEL_NAME || 'auto'
+
   const request: LLMRequest = {
-    model: 'auto',
+    model: model,
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
@@ -88,9 +90,7 @@ export async function correctText(
   const timeoutId = setTimeout(() => controller.abort(), 30000)
 
   try {
-    const baseUrl = import.meta.env.VITE_LLM_API_BASE_URL || 'http://localhost:30000'
-    const apiPath = import.meta.env.VITE_LLM_API_PATH || '/v1/chat/completions'
-    const response = await fetch(baseUrl + apiPath, {
+    const response = await fetch('/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -117,8 +117,13 @@ export async function correctText(
 
     throw new Error('Invalid response format')
   } catch (error) {
-    if (error instanceof Error && error.name === 'AbortError') {
-      throw new Error('Délai d\'attente dépassé')
+    if (error instanceof Error) {
+      if (error.name === 'AbortError') {
+        throw new Error('Délai d\'attente dépassé')
+      }
+      if (error.message.includes('Failed to fetch')) {
+        throw new Error('Impossible de contacter le serveur de correction. Vérifiez que le serveur LLM est lancé sur http://127.0.0.1:30000/v1. Test: curl -s http://127.0.0.1:30000/v1/models')
+      }
     }
     throw error
   }

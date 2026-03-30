@@ -77,7 +77,6 @@ export function useCorrector() {
       }
     } finally {
       setIsLoading(false)
-      setError(null)
       abortOngoingRequest()
     }
   }, [settings])

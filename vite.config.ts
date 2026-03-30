@@ -5,8 +5,15 @@ export default defineConfig({
   plugins: [react()],
   base: '/',
   server: {
-    port: process.env.PORT ? parseInt(process.env.PORT) : 25000,
-    host: true
+    port: 25000,
+    host: true,
+    proxy: {
+      '/v1': {
+        target: 'http://127.0.0.1:30000',
+        changeOrigin: true,
+        secure: false
+      }
+    }
   },
   build: {
     outDir: 'dist',
