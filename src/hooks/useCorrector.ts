@@ -59,6 +59,7 @@ export function useCorrector() {
 
     const startTime = performance.now()
     let currentText = textContent
+    let modificationCount = 0
 
     try {
       // Pre-fire LT
@@ -68,6 +69,7 @@ export function useCorrector() {
           if (preResult.matchCount > 0 && preResult.correctedText !== currentText) {
             const preDiff = computeDiff(currentText, preResult.correctedText, 'lt_pre');
             setDiffChunks(prev => [...prev, ...preDiff]);
+            modificationCount += preDiff.filter(chunk => chunk.type !== 'unchanged').length;
             currentText = preResult.correctedText;
             setStats(prev => ({ ...prev, ltPreCorrections: preResult.matchCount }));
           }
@@ -86,6 +88,7 @@ export function useCorrector() {
 
       const llmDiff = computeDiff(currentText, llmCorrected, 'llm');
       setDiffChunks(prev => [...prev, ...llmDiff]);
+      modificationCount += llmDiff.filter(chunk => chunk.type !== 'unchanged').length;
       currentText = llmCorrected;
 
       // Post-fire LT
@@ -96,6 +99,7 @@ export function useCorrector() {
           if (postResult.matchCount > 0 && postResult.correctedText !== currentText) {
             const postDiff = computeDiff(currentText, postResult.correctedText, 'lt_post');
             setDiffChunks(prev => [...prev, ...postDiff]);
+            modificationCount += postDiff.filter(chunk => chunk.type !== 'unchanged').length;
             finalText = postResult.correctedText;
             setStats(prev => ({ ...prev, ltPostCorrections: postResult.matchCount }));
           }
@@ -105,13 +109,11 @@ export function useCorrector() {
         }
       }
 
-      const modifications = diffChunks.filter(chunk => chunk.type !== 'unchanged').length;
-
       setOutputText(finalText)
       setStats(prev => ({
         ...prev,
         processingTime: Math.round(performance.now() - startTime),
-        modificationCount: modifications,
+        modificationCount,
       }))
     } catch (err) {
       if (err instanceof Error) {
