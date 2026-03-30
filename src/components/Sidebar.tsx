@@ -126,6 +126,46 @@ export function Sidebar({ settings, setSettings }: Props) {
           </label>
         </div>
       </div>
+
+      {settings.ltEnabled && (
+        <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">LanguageTool</h3>
+          
+          <div className="space-y-2">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={settings.ltPreFire}
+                onChange={(e) => setSettings({ ...settings, ltPreFire: e.target.checked })}
+                className="rounded border-gray-300 text-orange-600 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700"
+              />
+              <span className="text-sm text-gray-900 dark:text-gray-100">Pré-correction</span>
+            </label>
+            
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={settings.ltPostFire}
+                onChange={(e) => setSettings({ ...settings, ltPostFire: e.target.checked })}
+                className="rounded border-gray-300 text-orange-600 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700"
+              />
+              <span className="text-sm text-gray-900 dark:text-gray-100">Post-correction</span>
+            </label>
+          </div>
+        </div>
+      )}
+
+      <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={settings.ltEnabled}
+            onChange={(e) => setSettings({ ...settings, ltEnabled: e.target.checked })}
+            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"
+          />
+          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">Activer LanguageTool</span>
+        </label>
+      </div>
     </aside>
   )
 }
