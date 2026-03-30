@@ -34,9 +34,10 @@ export function mergeDiffs(chunks1: DiffChunk[], chunks2: DiffChunk[]): DiffChun
     if (chunk.type === 'added' && chunk.source) {
       const lastChunk = result[result.length - 1];
       if (lastChunk && lastChunk.type === 'added' && lastChunk.source === chunk.source) {
-        lastChunk.text += chunk.text;
+        // Clone to avoid mutating original chunks1
+        result[result.length - 1] = { ...lastChunk, text: lastChunk.text + chunk.text };
       } else {
-        result.push({ ...chunk });  // Clone when adding to avoid mutating original
+        result.push({ ...chunk });
       }
     }
   }
