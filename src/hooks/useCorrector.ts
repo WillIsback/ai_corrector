@@ -23,29 +23,33 @@ export function useCorrector() {
   })
 
   useEffect(() => {
-    const savedMode = localStorage.getItem('ai-corrector:mode')
     const savedSettings = localStorage.getItem('ai-corrector:settings')
-    
-    if (savedMode) {
-      setMode(savedMode as CorrectionMode)
-    }
     
     if (savedSettings) {
       try {
-        setSettings(JSON.parse(savedSettings))
+        const parsed = JSON.parse(savedSettings)
+        // Preserve mode from localStorage if not in settings
+        const savedMode = localStorage.getItem('ai-corrector:mode')
+        if (savedMode && !parsed.mode) {
+          parsed.mode = savedMode as CorrectionMode
+        }
+        setSettings(parsed)
       } catch {
         // Use defaults
       }
     }
+    
+    // Load saved mode from localStorage
+    const savedMode = localStorage.getItem('ai-corrector:mode')
+    if (savedMode) {
+      setMode(savedMode as CorrectionMode)
+    }
   }, [])
 
   useEffect(() => {
-    localStorage.setItem('ai-corrector:mode', mode)
-  }, [mode])
-
-  useEffect(() => {
     localStorage.setItem('ai-corrector:settings', JSON.stringify(settings))
-  }, [settings])
+    localStorage.setItem('ai-corrector:mode', mode)
+  }, [settings.mode, mode])
 
   const handleCorrect = useCallback(async () => {
     if (!textContent.trim()) {
@@ -90,7 +94,7 @@ export function useCorrector() {
       setError(null)
       abortOngoingRequest()
     }
-  }, [textContent, mode, settings])
+  }, [textContent, settings])
 
   const handleReset = useCallback(() => {
     setTextContent('')
@@ -105,6 +109,7 @@ export function useCorrector() {
     setTextContent,
     outputText,
     diffChunks,
+    
     mode,
     setMode,
     settings,
