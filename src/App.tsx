@@ -10,7 +10,6 @@ function App() {
   const {
     textContent,
     setTextContent,
-    outputText,
     diffChunks,
     mode,
     setMode,
@@ -51,9 +50,7 @@ function App() {
     setToast({ id: 'copy-success', message: 'Texte copié dans le presse-papier !', type: 'success' })
   }
 
-  const handleError = (message: string) => {
-    setToast({ id: 'error', message, type: 'error' })
-  }
+
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-200">

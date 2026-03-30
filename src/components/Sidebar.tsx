@@ -1,16 +1,10 @@
-import { CorrectionMode } from '../types'
+import { CorrectionMode, CorrectionSettings } from '../types'
 
 interface Props {
   mode: CorrectionMode
   setMode: (mode: CorrectionMode) => void
-  settings: {
-    mode: CorrectionMode
-    fixGrammar: boolean
-    fixSpelling: boolean
-    fixSyntax: boolean
-    fixStyle: boolean
-  }
-  setSettings: (settings: typeof settings) => void
+  settings: CorrectionSettings
+  setSettings: (settings: CorrectionSettings) => void
 }
 
 const modeLabels: Record<CorrectionMode, string> = {
