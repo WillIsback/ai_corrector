@@ -1,7 +1,8 @@
-import { useState, useCallback, useEffect } from 'react'
-import { correctText, abortOngoingRequest } from '../utils/api'
-import { computeDiff } from '../utils/diff'
-import { CorrectionSettings, DiffChunk, CorrectionStats } from '../types'
+import { useState, useCallback, useEffect } from 'react';
+import { correctText } from '../utils/api';
+import { computeDiff } from '../utils/diff';
+import { checkLanguageTool } from '../services/languagetool';
+import { CorrectionSettings, DiffChunk, CorrectionStats } from '../types';
 
 export function useCorrector() {
   const [textContent, setTextContent] = useState('')
@@ -13,13 +14,19 @@ export function useCorrector() {
     fixSpelling: true,
     fixSyntax: true,
     fixStyle: true,
+    ltEnabled: true,
+    ltPreFire: true,
+    ltPostFire: true,
   })
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [stats, setStats] = useState<CorrectionStats>({
     processingTime: 0,
     modificationCount: 0,
+    ltPreCorrections: 0,
+    ltPostCorrections: 0,
   })
+  const [ltWarning, setLtWarning] = useState<string | null>(null)
 
   useEffect(() => {
     const savedSettings = localStorage.getItem('ai-corrector:settings')
@@ -35,7 +42,7 @@ export function useCorrector() {
 
   useEffect(() => {
     localStorage.setItem('ai-corrector:settings', JSON.stringify(settings))
-  }, [settings.mode])
+  }, [settings])
 
   const handleCorrect = useCallback(async () => {
     if (!textContent.trim()) {
@@ -47,28 +54,65 @@ export function useCorrector() {
     setError(null)
     setOutputText('')
     setDiffChunks([])
-    setStats({ processingTime: 0, modificationCount: 0 })
+    setLtWarning(null)
+    setStats({ processingTime: 0, modificationCount: 0, ltPreCorrections: 0, ltPostCorrections: 0 })
 
     const startTime = performance.now()
+    let currentText = textContent
 
     try {
-      const corrected = await correctText(textContent, settings)
+      // Pre-fire LT
+      if (settings.ltEnabled && settings.ltPreFire) {
+        try {
+          const preResult = await checkLanguageTool(currentText);
+          if (preResult.matchCount > 0 && preResult.correctedText !== currentText) {
+            const preDiff = computeDiff(currentText, preResult.correctedText, 'lt_pre');
+            setDiffChunks(prev => [...prev, ...preDiff]);
+            currentText = preResult.correctedText;
+            setStats(prev => ({ ...prev, ltPreCorrections: preResult.matchCount }));
+          }
+        } catch (e) {
+          console.warn('Pre-fire LT failed:', e);
+          setLtWarning('Pre-fire correction skipped (LanguageTool unavailable)');
+        }
+      }
+
+      // LLM inference
+      const llmCorrected = await correctText(currentText, settings);
       
-      // Validate API response
-      if (!corrected || corrected.trim().length === 0) {
+      if (!llmCorrected || llmCorrected.trim().length === 0) {
         throw new Error('LLM returned empty response')
       }
-      
-      const diff = computeDiff(textContent, corrected)
 
-      const modifications = diff.filter(chunk => chunk.type !== 'unchanged').length
+      const llmDiff = computeDiff(currentText, llmCorrected, 'llm');
+      setDiffChunks(prev => [...prev, ...llmDiff]);
+      currentText = llmCorrected;
 
-      setOutputText(corrected)
-      setDiffChunks(diff)
-      setStats({
+      // Post-fire LT
+      let finalText = currentText;
+      if (settings.ltEnabled && settings.ltPostFire) {
+        try {
+          const postResult = await checkLanguageTool(currentText);
+          if (postResult.matchCount > 0 && postResult.correctedText !== currentText) {
+            const postDiff = computeDiff(currentText, postResult.correctedText, 'lt_post');
+            setDiffChunks(prev => [...prev, ...postDiff]);
+            finalText = postResult.correctedText;
+            setStats(prev => ({ ...prev, ltPostCorrections: postResult.matchCount }));
+          }
+        } catch (e) {
+          console.warn('Post-fire LT failed:', e);
+          setLtWarning('Post-fire correction skipped (LanguageTool unavailable)');
+        }
+      }
+
+      const modifications = diffChunks.filter(chunk => chunk.type !== 'unchanged').length;
+
+      setOutputText(finalText)
+      setStats(prev => ({
+        ...prev,
         processingTime: Math.round(performance.now() - startTime),
         modificationCount: modifications,
-      })
+      }))
     } catch (err) {
       if (err instanceof Error) {
         setError(err.message)
@@ -77,7 +121,6 @@ export function useCorrector() {
       }
     } finally {
       setIsLoading(false)
-      abortOngoingRequest()
     }
   }, [settings])
 
@@ -85,8 +128,9 @@ export function useCorrector() {
     setTextContent('')
     setOutputText('')
     setDiffChunks([])
-    setStats({ processingTime: 0, modificationCount: 0 })
+    setStats({ processingTime: 0, modificationCount: 0, ltPreCorrections: 0, ltPostCorrections: 0 })
     setError(null)
+    setLtWarning(null)
   }, [])
 
   return {
@@ -99,6 +143,7 @@ export function useCorrector() {
     isLoading,
     error,
     stats,
+    ltWarning,
     handleCorrect,
     handleReset,
   }
