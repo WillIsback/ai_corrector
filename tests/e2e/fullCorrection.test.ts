@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { checkLanguageTool, checkLTAvailable } from '../../src/services/languagetool'
+import { describe, expect, it } from "vitest";
+import { checkLanguageTool, checkLTAvailable } from "../../src/services/languagetool";
 
 const testText = `Bonjour Gwladys,
 
@@ -7,35 +7,35 @@ const testText = `Bonjour Gwladys,
 
 Je reviens vers vous dès que je reçois une réponse satisfaisante.
 
-Cordialement,`
+Cordialement,`;
 
-describe('E2E - Real LanguageTool', () => {
-  it('corrige les erreurs réelles du texte de test', async () => {
-    const available = await checkLTAvailable()
-    
+describe("E2E - Real LanguageTool", () => {
+  it("corrige les erreurs réelles du texte de test", async () => {
+    const available = await checkLTAvailable();
+
     if (!available) {
-      console.log('Skip: LT server not available (localhost:3002)')
-      return
+      console.log("Skip: LT server not available (localhost:3002)");
+      return;
     }
 
-    const result = await checkLanguageTool(testText)
-    
-    expect(result.matchCount).toBeGreaterThan(0)
-    expect(result.correctedText).not.toBe(testText)
-    expect(result.correctedText).toContain('vendredi')
-  }, 10000)
+    const result = await checkLanguageTool(testText);
 
-  it('timing < 5s', async () => {
-    const available = await checkLTAvailable()
+    expect(result.matchCount).toBeGreaterThan(0);
+    expect(result.correctedText).not.toBe(testText);
+    expect(result.correctedText).toContain("vendredi");
+  }, 10000);
+
+  it("timing < 5s", async () => {
+    const available = await checkLTAvailable();
     if (!available) {
-      console.log('Skip: LT server not available')
-      return
+      console.log("Skip: LT server not available");
+      return;
     }
 
-    const start = Date.now()
-    await checkLanguageTool(testText)
-    const duration = Date.now() - start
+    const start = Date.now();
+    await checkLanguageTool(testText);
+    const duration = Date.now() - start;
 
-    expect(duration).toBeLessThan(5000)
-  }, 10000)
-})
+    expect(duration).toBeLessThan(5000);
+  }, 10000);
+});

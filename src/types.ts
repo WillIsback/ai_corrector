@@ -1,8 +1,4 @@
-export type CorrectionMode = 
-  | 'formel'
-  | 'semi-formel'
-  | 'informel'
-  | 'technical';
+export type CorrectionMode = "formel" | "semi-formel" | "informel" | "technical";
 
 export interface CorrectionSettings {
   mode: CorrectionMode;
@@ -15,9 +11,9 @@ export interface CorrectionSettings {
   ltPostFire: boolean;
 }
 
-export type CorrectionSource = 'llm' | 'lt_pre' | 'lt_post';
+export type CorrectionSource = "llm" | "lt_pre" | "lt_post";
 
-export type DiffChunkType = 'unchanged' | 'added' | 'removed';
+export type DiffChunkType = "unchanged" | "added" | "removed";
 
 export interface DiffChunk {
   type: DiffChunkType;
@@ -40,12 +36,12 @@ export interface CorrectionResult {
   stats: CorrectionStats;
 }
 
-export type ToastType = 'success' | 'error' | 'warning'
+export type ToastType = "success" | "error" | "warning";
 
 export interface Toast {
-  id: string
-  message: string
-  type: ToastType
+  id: string;
+  message: string;
+  type: ToastType;
 }
 
 // LanguageTool types

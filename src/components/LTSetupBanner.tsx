@@ -1,5 +1,5 @@
 interface Props {
-  onDismiss?: () => void
+  onDismiss?: () => void;
 }
 
 export function LTSetupBanner({ onDismiss }: Props) {
@@ -22,6 +22,7 @@ export function LTSetupBanner({ onDismiss }: Props) {
         </div>
         {onDismiss && (
           <button
+            type="button"
             onClick={onDismiss}
             className="text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-200"
           >
@@ -30,5 +31,5 @@ export function LTSetupBanner({ onDismiss }: Props) {
         )}
       </div>
     </div>
-  )
+  );
 }

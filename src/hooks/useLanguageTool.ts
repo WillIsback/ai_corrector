@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { checkLTAvailable } from '../services/languagetool';
+import { useEffect, useState } from "react";
+import { checkLTAvailable } from "../services/languagetool";
 
 export function useLanguageTool() {
   const [isAvailable, setIsAvailable] = useState(false);

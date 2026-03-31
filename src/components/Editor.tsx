@@ -1,8 +1,8 @@
 interface Props {
-  text: string
-  onChange: (text: string) => void
-  onCorrect: () => void
-  isLoading: boolean
+  text: string;
+  onChange: (text: string) => void;
+  onCorrect: () => void;
+  isLoading: boolean;
 }
 
 export function Editor({ text, onChange, onCorrect, isLoading }: Props) {
@@ -14,10 +14,11 @@ export function Editor({ text, onChange, onCorrect, isLoading }: Props) {
             📋 Texte à corriger
           </h2>
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Saisissez votre texte ci-dessous. Les corrections s'appliqueront en cliquant sur "Corriger".
+            Saisissez votre texte ci-dessous. Les corrections s'appliqueront en cliquant sur
+            "Corriger".
           </p>
         </div>
-        
+
         <textarea
           value={text}
           onChange={(e) => onChange(e.target.value)}
@@ -28,21 +29,23 @@ export function Editor({ text, onChange, onCorrect, isLoading }: Props) {
                     resize-y font-medium"
           spellCheck={false}
         />
-        
+
         <div className="mt-4 flex justify-end">
           <button
+            type="button"
             onClick={onCorrect}
             disabled={isLoading || !text.trim()}
             className={`px-6 py-2 rounded-lg font-semibold transition-all
-              ${isLoading 
-                ? 'bg-gray-300 dark:bg-gray-700 cursor-not-allowed' 
-                : 'bg-blue-600 hover:bg-blue-700 text-white'
+              ${
+                isLoading
+                  ? "bg-gray-300 dark:bg-gray-700 cursor-not-allowed"
+                  : "bg-blue-600 hover:bg-blue-700 text-white"
               }`}
           >
-            {isLoading ? 'Correction en cours...' : 'Corriger'}
+            {isLoading ? "Correction en cours..." : "Corriger"}
           </button>
         </div>
       </div>
     </div>
-  )
+  );
 }
