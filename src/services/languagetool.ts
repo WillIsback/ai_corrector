@@ -83,7 +83,24 @@ export async function checkLanguageTool(
 
   const data: LTResponse = await response.json();
   const acronyms = await loadProtectedAcronyms();
-  const correctedText = applyAutoFix(text, data.matches, acronyms);
+
+  // Filter out LT matches that overlap with protected placeholders
+  let filteredMatches = data.matches;
+  if (suspects.length > 0) {
+    const placeholderRanges = suspects
+      .map((s) => ({
+        start: text.indexOf(s.placeholder),
+        end: text.indexOf(s.placeholder) + s.placeholder.length,
+      }))
+      .filter((r) => r.start >= 0);
+
+    filteredMatches = data.matches.filter((m) => {
+      const matchEnd = m.offset + m.length;
+      return !placeholderRanges.some((r) => m.offset < r.end && matchEnd > r.start);
+    });
+  }
+
+  const correctedText = applyAutoFix(text, filteredMatches, acronyms);
 
   // Restore protected entities
   let finalText = correctedText;

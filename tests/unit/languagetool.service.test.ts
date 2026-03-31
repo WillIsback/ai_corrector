@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { detectEntities, protectEntities } from "../../src/services/entityDetector";
 import { checkLanguageTool, checkLTAvailable } from "../../src/services/languagetool";
 import type { LTMatch, LTResponse } from "../../src/types";
 
@@ -173,8 +174,6 @@ describe("checkLTAvailable", () => {
   });
 
   it("checkLTAvailable_timeout - Timeout 2s → false", async () => {
-    // Simulate what happens when AbortSignal.timeout(2000) fires
-    // The fetch will throw an AbortError which should be caught and return false
     globalThis.fetch = vi
       .fn()
       .mockRejectedValue(
@@ -184,5 +183,173 @@ describe("checkLTAvailable", () => {
     const result = await checkLTAvailable();
 
     expect(result).toBe(false);
+  });
+});
+
+describe("checkLanguageTool with entity protection", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("should not corrupt placeholders when LT returns adjacent matches", async () => {
+    const originalText = "J'utilise Noota ici.";
+    const suspects = detectEntities(originalText, new Set());
+    const protectedText = protectEntities(originalText, suspects);
+    console.log("Protected:", protectedText);
+
+    // Simulate LT returning a match that's adjacent to the placeholder
+    // The protected text has __PROT_0__ where Noota was
+    const mockResponse: LTResponse = {
+      matches: [
+        {
+          message: "Accord",
+          shortMessage: "",
+          offset: protectedText.indexOf("utilise"),
+          length: 7,
+          replacements: ["utilisé"],
+          rule: { id: "FRENCH_WHEN" },
+        },
+      ],
+    };
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => mockResponse,
+    }) as typeof fetch;
+
+    const result = await checkLanguageTool(protectedText, suspects);
+    console.log("Result:", result.correctedText);
+    console.log("Suspects:", JSON.stringify(result.suspects, null, 2));
+
+    // Noota should appear exactly once
+    const nootaMatches = result.correctedText.match(/Noota/g);
+    expect(nootaMatches).toHaveLength(1);
+    expect(result.correctedText).toBe("J'utilisé Noota ici.");
+  });
+
+  it("should handle LT match that includes placeholder text", async () => {
+    const protectedText = "Bonjour __PROT_0__ monde";
+    const suspects = [
+      {
+        placeholder: "__PROT_0__",
+        originalText: "Noota",
+        offset: 8,
+        length: 5,
+        wasCorrected: false,
+      },
+    ];
+
+    // LT matches "__PROT_0__" itself (hypothetical - LT treats it as an error)
+    const mockResponse: LTResponse = {
+      matches: [
+        {
+          message: "Unknown word",
+          shortMessage: "",
+          offset: 8,
+          length: 10,
+          replacements: ["Noota"],
+          rule: { id: "MORFOLOGIK" },
+        },
+      ],
+    };
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => mockResponse,
+    }) as typeof fetch;
+
+    const result = await checkLanguageTool(protectedText, suspects);
+
+    // Noota should appear exactly once
+    const nootaMatches = result.correctedText.match(/Noota/g);
+    expect(nootaMatches).toHaveLength(1);
+  });
+
+  it("should NOT corrupt text when LT match straddles a placeholder boundary", async () => {
+    // This is the bug: LT matches a span that partially overlaps a placeholder
+    // e.g., match at offset 5, length 15 in "__PROT_0__ hello" would corrupt __PROT_0__
+    const protectedText = "avec __PROT_0__ ici";
+    const suspects = [
+      {
+        placeholder: "__PROT_0__",
+        originalText: "Noota",
+        offset: 5,
+        length: 5,
+        wasCorrected: false,
+      },
+    ];
+
+    // LT returns a match that STRADDLES the placeholder boundary
+    // Match: "avec __PROT_0" (offset 0, length 14) — partially overlaps placeholder
+    const mockResponse: LTResponse = {
+      matches: [
+        {
+          message: "Grammar",
+          shortMessage: "",
+          offset: 0,
+          length: 14, // "avec __PROT_0" — straddles the placeholder
+          replacements: ["avec"],
+          rule: { id: "GRAMMAR_RULE" },
+        },
+      ],
+    };
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => mockResponse,
+    }) as typeof fetch;
+
+    const result = await checkLanguageTool(protectedText, suspects);
+
+    // With the bug: applyAutoFix corrupts __PROT_0__, restoreEntities fails
+    // Expected: Noota should appear exactly once
+    const nootaMatches = result.correctedText.match(/Noota/g);
+    expect(nootaMatches).not.toBeNull();
+    expect(nootaMatches).toHaveLength(1);
+  });
+
+  it("should reproduce user-reported bug with real LT flow", async () => {
+    // Full simulation of user's flow:
+    // Input: "Bonjour, tu connais Noota ?"
+    const originalText = "Bonjour, tu connais Noota ?";
+
+    // Step 1: detect entities
+    const suspects = detectEntities(originalText, new Set());
+    console.log(
+      "Detected suspects:",
+      suspects.map((s) => `${s.originalText}@${s.offset}`),
+    );
+
+    // Step 2: protect
+    const protectedText = protectEntities(originalText, suspects);
+    console.log("Protected text:", protectedText);
+
+    // Step 3: LT response on protected text
+    // LT might return multiple matches including some near the placeholder
+    const mockResponse: LTResponse = {
+      matches: [
+        {
+          message: "Formel",
+          shortMessage: "",
+          offset: 9, // "tu connais"
+          length: 10,
+          replacements: ["connaissez-vous"],
+          rule: { id: "INFORMAL" },
+        },
+      ],
+    };
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => mockResponse,
+    }) as typeof fetch;
+
+    const result = await checkLanguageTool(protectedText, suspects);
+    console.log("LT result:", result.correctedText);
+
+    // Verify no duplicates
+    const nootaMatches = result.correctedText.match(/Noota/g);
+    expect(nootaMatches).toHaveLength(1);
+    expect(result.correctedText).toBe("Bonjour, connaissez-vous Noota ?");
   });
 });
