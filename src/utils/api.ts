@@ -87,7 +87,7 @@ export async function correctText(text: string, settings: CorrectionSettings): P
   const timeoutId = setTimeout(() => controller.abort(), 30000);
 
   try {
-    const response = await fetch("/v1/chat/completions", {
+    const response = await fetch("/corrector/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
