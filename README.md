@@ -2,13 +2,37 @@
 
 Correcteur et reformateur de rédaction en français alimenté par LLM.
 
+## Architecture
+
+```
+Caddy (HTTPS/Tailscale :443)
+  └─ /corrector* → Bun server (:25000)
+       ├─ Fichiers statiques (dist/)
+       ├─ GET/POST /corrector/api/valid-words → public/data/valid-words.json
+       ├─ Proxy /corrector/api/lt/* → LanguageTool (:3002)
+       └─ Proxy /corrector/v1/* → LLM (:30000)
+
+Vite dev (:25001) → proxy API → Bun (:25000)
+```
+
+### Pipeline de correction
+
+```
+Input → detectEntities (compromise.js) → getEntityOffsets
+      → LT (filtre les matches sur les entités)
+      → LLM
+      → markEntitiesInOutput (cherche les entités dans la sortie)
+      → SuspectBadge (marqueur orange cliquable)
+```
+
+Les entités (noms propres, marques) sont détectées dans le texte d'entrée et **protégées des corrections LanguageTool** via un filtrage par offsets. L'utilisateur peut valider un mot (Garder → `valid-words.json`) ou accepter la correction LT.
+
 ## Pré-requis
 
-- Node.js 18+
+- Bun (runtime serveur)
+- Node.js 18+ (build)
 - vLLM serveur (port 30000) ou API compatible OpenAI
-- LanguageTool (port 3002) - optionnel mais recommandé pour la correctiongrammaire
-
-**Important**: Si vous utilisez vLLM, configurez un proxy pour contourner les problèmes CORS.
+- LanguageTool Docker (port 3002)
 
 ## Installation
 
@@ -18,7 +42,7 @@ npm install
 
 ## Configuration
 
-Créez un fichier `.env.local` à la racine du projet:
+`.env.local` à la racine du projet:
 
 ```env
 VITE_LLM_API_BASE_URL=http://localhost:30000
@@ -26,94 +50,89 @@ VITE_LLM_API_PATH=/v1/chat/completions
 VITE_LLM_MODEL_NAME=Intel/Qwen3-Coder-Next-int4-AutoRound
 ```
 
-### Configuration CORS (vLLM)
+### Fichier des mots valides
 
-Le serveur vLLM ne supporte pas les requêtes OPTIONS (preflight CORS). Pour résoudre cela, le proxy Vite redirige automatiquement les requêtes `/v1/*` vers le serveur LLM.
+`public/data/valid-words.json` contient les mots que l'utilisateur a validés (protégés du marquage). Format:
 
-**Si vous utilisez un autre serveur API**, assurez-vous qu'il supporte les CORS ou configurez un proxy dans `vite.config.ts`.
-
-## Accès distant (Tailscale)
-
-L'application est accessible via Caddy en HTTPS sur le réseau Tailscale :
-
-**URL :** https://spark-787d-1.tail6cba9f.ts.net/corrector
-
-### Configuration requise
-
-1. **Caddyfile** (`~/infra/caddy/Caddyfile`) doit contenir :
-   ```plaintext
-   spark-787d-1.tail6cba9f.ts.net {
-       # AI Corrector
-       handle /corrector* {
-           reverse_proxy host.docker.internal:25000
-       }
-       # LanguageTool API proxy (HTTPS → HTTP)
-       handle /corrector/api/lt* {
-           reverse_proxy host.docker.internal:3002
-       }
-   }
-   ```
-
-2. **vite.config.ts** doit inclure :
-   ```ts
-   server: {
-     allowedHosts: ['spark-787d-1.tail6cba9f.ts.net'],
-     origin: 'https://spark-787d-1.tail6cba9f.ts.net/corrector',
-     base: '/corrector/',
-   }
-   ```
-
-3. **languagetool.ts** utilise le proxy `/corrector/api/lt` pour éviter le contenu mixte (mixed content).
-
-### Renouvellement du certificat
-
-Le certificat Tailscale doit couvrir le domaine principal. Pour renouveler (mensuel) :
-```bash
-sudo tailscale cert --cert-file ~/infra/caddy/certs/cert.pem \
-                    --key-file  ~/infra/caddy/certs/key.pem \
-                    spark-787d-1.tail6cba9f.ts.net
-docker compose -f ~/infra/docker-compose.yml restart caddy
+```json
+{
+  "words": ["Noota", "Slack"]
+}
 ```
 
-## Development
+Ce fichier est modifié dynamiquement via l'API `POST /corrector/api/valid-words` (quand l'utilisateur clique "Garder").
+
+## Démarrage
+
+### Production (Bun server)
 
 ```bash
+npm run build
+bun run server.ts
+```
+
+Accès : http://localhost:25000
+
+### Développement (Vite + Bun)
+
+```bash
+# Terminal 1 : Bun server (API + proxy)
+bun run server.ts
+
+# Terminal 2 : Vite dev (HMR)
 npm run dev
 ```
 
-L'application est accessible sur http://localhost:25000
+- Bun : http://localhost:25000 (API)
+- Vite : http://localhost:25001 (dev avec HMR)
+
+### Scripts
+
+```bash
+./start-ai-corrector.sh       # LanguageTool + AI Corrector (production)
+./start-ai-corrector.sh lt    # LanguageTool seul
+./start-ai-corrector.sh app   # AI Corrector seul
+```
+
+## Accès distant (Tailscale)
+
+URL : https://spark-787d-1.tail6cba9f.ts.net/corrector
+
+Caddy reverse proxy → Bun server (:25000). La config Caddy utilise `handle_path /corrector*` qui **supprime le préfixe `/corrector`** avant de transmettre au serveur. Le serveur Bun normalise les chemins pour gérer les deux formats.
+
+## Tests
+
+```bash
+npm test              # run once
+npm run test:watch    # watch mode
+npm run test:coverage # avec couverture
+```
 
 ## Build
 
 ```bash
 npm run build
-npx serve -s dist -l 25000
 ```
 
-## Problemes connus
+Sortie : `dist/` (servi par Bun server)
+
+## Problèmes connus
 
 ### ERR_CONNECTION_REFUSED
 
-Si vous voyez l'erreur "Impossible de contacter le serveur de correction":
-1. Vérifiez que le serveur LLM tourne sur le port configuré
-2. Testez: `curl -s http://localhost:30000/v1/models`
-3. Si le serveur est lancé mais que le navigateur ne peut pas se connecter, vérifiez la configuration CORS
+1. Vérifier que le serveur LLM tourne : `curl -s http://localhost:30000/v1/models`
+2. Vérifier que Bun server tourne : `curl -s http://localhost:25000/corrector/api/valid-words`
 
-### Veuillez entrer du texte
+### LanguageTool ne corrige pas
 
-Cette erreur apparaissait dans les versions antérieures à la correction de mars 2026. Elle était causée par:
-- Un `finally` block qui effaçait les erreurs immédiatement après leur affichage
-- Une incompatibilité CORS avec vLLM
-
-**Fix appliqué**: 
-- Suppression de `setError(null)` dans la clause `finally`
-- Ajout d'un proxy Vite pour contourner les problèmes CORS
+Vérifier que LT tourne : `curl -s http://localhost:3002/v2/languages`
 
 ## Fonctionnalités
 
 - Correction complète (grammaire, orthographe, syntaxe, style)
 - 4 modes de correction (Formel, Semi-formel, Informel, Technical)
+- Protection des entités nommées (noms propres, marques)
+- Validation interactive des mots suspects (Garder/Rejeter)
 - Diff view pour visualiser les modifications
-- Persistancy des préférences
+- Persistance des préférences (localStorage)
 - Thème auto (dark/light)
-- Toast notifications
