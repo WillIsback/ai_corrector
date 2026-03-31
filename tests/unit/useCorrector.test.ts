@@ -7,6 +7,17 @@ vi.mock("../../src/utils/api", () => ({
   correctText: vi.fn(),
 }));
 
+// Mock entityDetector and validWords to avoid extra fetch calls
+vi.mock("../../src/services/entityDetector", () => ({
+  detectEntities: vi.fn().mockReturnValue([]),
+  protectEntities: vi.fn((text) => text),
+}));
+
+vi.mock("../../src/services/validWords", () => ({
+  loadValidWords: vi.fn().mockResolvedValue(new Set<string>()),
+  addValidWord: vi.fn().mockResolvedValue(undefined),
+}));
+
 describe("useCorrector", () => {
   let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
 
@@ -154,7 +165,17 @@ describe("useCorrector", () => {
     });
 
     it("no setState après unmount pendant correction", async () => {
-      // Simuler fetch lent
+      // Mock loadValidWords as deferred so unmount can happen before LT fetch
+      let resolveLoadValidWords: (value: Set<string>) => void;
+      const { loadValidWords } = await import("../../src/services/validWords");
+      vi.mocked(loadValidWords).mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            resolveLoadValidWords = resolve as (value: Set<string>) => void;
+          }),
+      );
+
+      // Simuler fetch lent pour LT
       let resolveFetch: (value: unknown) => void;
       const mockFetch = vi.fn().mockImplementation(
         () =>
@@ -184,15 +205,21 @@ describe("useCorrector", () => {
         result.current.setTextContent("Test text");
       });
 
-      // Démarre correction
+      // Démarre correction (suspend sur loadValidWords)
       act(() => {
         result.current.handleCorrect();
       });
 
-      // Unmount pendant la correction
+      // Résout loadValidWords pour que handleCorrect avance jusqu'au fetch LT
+      await act(async () => {
+        resolveLoadValidWords!(new Set<string>());
+        await new Promise((r) => setTimeout(r, 10));
+      });
+
+      // Unmount pendant que le fetch LT est en attente
       unmount();
 
-      // Résout le fetch après unmount
+      // Résout le fetch LT après unmount
       await act(async () => {
         resolveFetch!({ ok: true, json: async () => ({ matches: [] }) });
         await new Promise((r) => setTimeout(r, 50));
