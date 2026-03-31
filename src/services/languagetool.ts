@@ -48,7 +48,10 @@ export interface LTCheckResult {
   matches: LTMatch[];
 }
 
-export async function checkLanguageTool(text: string): Promise<LTCheckResult> {
+export async function checkLanguageTool(
+  text: string,
+  protectedRanges: Array<{ start: number; end: number }> = [],
+): Promise<LTCheckResult> {
   if (!text.trim()) {
     throw new Error("Le texte ne peut pas être vide");
   }
@@ -78,7 +81,17 @@ export async function checkLanguageTool(text: string): Promise<LTCheckResult> {
 
   const data: LTResponse = await response.json();
   const acronyms = await loadProtectedAcronyms();
-  const correctedText = applyAutoFix(text, data.matches, acronyms);
+
+  // Filter out matches that overlap with protected entity ranges
+  let filteredMatches = data.matches;
+  if (protectedRanges.length > 0) {
+    filteredMatches = data.matches.filter((m) => {
+      const matchEnd = m.offset + m.length;
+      return !protectedRanges.some((r) => m.offset < r.end && matchEnd > r.start);
+    });
+  }
+
+  const correctedText = applyAutoFix(text, filteredMatches, acronyms);
 
   return {
     correctedText,

@@ -79,3 +79,23 @@ export function markEntitiesInOutput(outputText: string, entities: string[]): Su
 
   return suspects;
 }
+
+/**
+ * Finds the offsets of entity words in the original text.
+ * Used to filter LanguageTool matches that would correct entity words.
+ */
+export function getEntityOffsets(
+  text: string,
+  entities: string[],
+): Array<{ start: number; end: number }> {
+  const offsets: Array<{ start: number; end: number }> = [];
+
+  for (const entity of entities) {
+    const index = text.toLowerCase().indexOf(entity.toLowerCase());
+    if (index >= 0) {
+      offsets.push({ start: index, end: index + entity.length });
+    }
+  }
+
+  return offsets;
+}

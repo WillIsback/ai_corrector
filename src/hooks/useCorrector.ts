@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { detectEntities, markEntitiesInOutput } from "../services/entityDetector";
+import { detectEntities, getEntityOffsets, markEntitiesInOutput } from "../services/entityDetector";
 import { checkLanguageTool } from "../services/languagetool";
 import { addValidWord, loadValidWords } from "../services/validWords";
 import type { CorrectionSettings, CorrectionStats, SuspectWord } from "../types";
@@ -111,11 +111,12 @@ export function useCorrector() {
       // Detect entities in the input text (for marking later)
       const validWords = await loadValidWords();
       const detectedEntities = detectEntities(textContent, validWords);
+      const entityRanges = getEntityOffsets(textContent, detectedEntities);
 
-      // Pre-fire LT on original text (no placeholder protection)
+      // Pre-fire LT on original text (skip corrections on entity words)
       if (settings.ltEnabled && settings.ltPreFire) {
         try {
-          const preResult = await checkLanguageTool(currentText);
+          const preResult = await checkLanguageTool(currentText, entityRanges);
           if (preResult.matchCount > 0 && preResult.correctedText !== currentText) {
             currentText = preResult.correctedText;
             setStats((prev) => ({ ...prev, ltPreCorrections: preResult.matchCount }));

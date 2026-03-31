@@ -10,6 +10,7 @@ vi.mock("../../src/utils/api", () => ({
 // Mock entityDetector and validWords to avoid extra fetch calls
 vi.mock("../../src/services/entityDetector", () => ({
   detectEntities: vi.fn().mockReturnValue([]),
+  getEntityOffsets: vi.fn().mockReturnValue([]),
   markEntitiesInOutput: vi.fn().mockReturnValue([]),
 }));
 
