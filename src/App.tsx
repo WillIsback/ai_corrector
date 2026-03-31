@@ -19,8 +19,11 @@ function App() {
     error,
     stats,
     ltWarning,
+    suspects,
     handleCorrect,
     handleReset,
+    handleKeepWord,
+    handleRejectWord,
   } = useCorrector();
 
   const { isAvailable: ltAvailable } = useLanguageTool();
@@ -74,6 +77,9 @@ function App() {
 
         <Output
           outputText={outputText}
+          suspects={suspects}
+          onKeepWord={handleKeepWord}
+          onRejectWord={handleRejectWord}
           stats={stats}
           onCopy={handleCopySuccess}
           onReset={handleReset}

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { detectEntities, protectEntities } from "../services/entityDetector";
 import { checkLanguageTool } from "../services/languagetool";
-import type { CorrectionSettings, CorrectionStats } from "../types";
+import { addValidWord, loadValidWords } from "../services/validWords";
+import type { CorrectionSettings, CorrectionStats, SuspectWord } from "../types";
 import { correctText } from "../utils/api";
 
 export function useCorrector() {
@@ -25,6 +27,7 @@ export function useCorrector() {
     ltPostCorrections: 0,
   });
   const [ltWarning, setLtWarning] = useState<string | null>(null);
+  const [suspects, setSuspects] = useState<SuspectWord[]>([]);
 
   // Ref to track if a correction is running
   const isRunningRef = useRef(false);
@@ -117,12 +120,23 @@ export function useCorrector() {
     abortControllerRef.current = controller;
 
     try {
-      // Pre-fire LT
+      // Load valid words and detect entities before LT
+      let currentSuspects: SuspectWord[] = [];
+      if (settings.ltEnabled && settings.ltPreFire) {
+        const validWords = await loadValidWords();
+        currentSuspects = detectEntities(currentText, validWords);
+        if (currentSuspects.length > 0) {
+          currentText = protectEntities(currentText, currentSuspects);
+        }
+      }
+
+      // Pre-fire LT with protected text
       if (settings.ltEnabled && settings.ltPreFire) {
         try {
-          const preResult = await checkLanguageTool(currentText);
+          const preResult = await checkLanguageTool(currentText, currentSuspects);
           if (preResult.matchCount > 0 && preResult.correctedText !== currentText) {
             currentText = preResult.correctedText;
+            currentSuspects = preResult.suspects;
             setStats((prev) => ({ ...prev, ltPreCorrections: preResult.matchCount }));
           }
         } catch (e) {
@@ -156,6 +170,9 @@ export function useCorrector() {
       const correctedLength = finalText.length;
       const modificationCount =
         originalLength !== correctedLength ? Math.abs(correctedLength - originalLength) : 0;
+
+      // Store suspects for UI
+      setSuspects(currentSuspects);
 
       setOutputText(finalText);
       setStats((prev) => ({
@@ -192,6 +209,16 @@ export function useCorrector() {
     });
     setError(null);
     setLtWarning(null);
+    setSuspects([]);
+  }, []);
+
+  const handleKeepWord = useCallback(async (word: string) => {
+    await addValidWord(word);
+    setSuspects((prev) => prev.filter((s) => s.originalText !== word));
+  }, []);
+
+  const handleRejectWord = useCallback((word: string) => {
+    setSuspects((prev) => prev.filter((s) => s.originalText !== word));
   }, []);
 
   return {
@@ -205,7 +232,10 @@ export function useCorrector() {
     error,
     stats,
     ltWarning,
+    suspects,
     handleCorrect,
     handleReset,
+    handleKeepWord,
+    handleRejectWord,
   };
 }

@@ -1,5 +1,12 @@
+import type React from "react";
+import type { SuspectWord } from "../types";
+import { SuspectWord as SuspectBadge } from "./SuspectBadge";
+
 interface Props {
   outputText: string;
+  suspects: SuspectWord[];
+  onKeepWord: (word: string) => void;
+  onRejectWord: (word: string) => void;
   stats: {
     processingTime: number;
     modificationCount: number;
@@ -12,7 +19,56 @@ interface Props {
   ltWarning?: string | null;
 }
 
-export function Output({ outputText, stats, onCopy, onReset, isLoading, ltWarning }: Props) {
+function renderTextWithSuspects(
+  text: string,
+  suspects: SuspectWord[],
+  onKeep: (word: string) => void,
+  onReject: (word: string) => void,
+): React.ReactNode[] {
+  if (suspects.length === 0) {
+    return [<span key="text">{text}</span>];
+  }
+
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+
+  const sorted = [...suspects].sort((a, b) => a.offset - b.offset);
+
+  for (const suspect of sorted) {
+    if (suspect.offset > lastIndex) {
+      parts.push(<span key={`text-${lastIndex}`}>{text.slice(lastIndex, suspect.offset)}</span>);
+    }
+
+    parts.push(
+      <SuspectBadge
+        key={`suspect-${suspect.offset}`}
+        word={suspect.originalText}
+        onKeep={() => onKeep(suspect.originalText)}
+        onReject={() => onReject(suspect.originalText)}
+      />,
+    );
+
+    lastIndex = suspect.offset + suspect.length;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(<span key={`text-${lastIndex}`}>{text.slice(lastIndex)}</span>);
+  }
+
+  return parts;
+}
+
+export function Output({
+  outputText,
+  suspects,
+  onKeepWord,
+  onRejectWord,
+  stats,
+  onCopy,
+  onReset,
+  isLoading,
+  ltWarning,
+}: Props) {
   return (
     <div className="flex-1 p-6">
       <div className="max-w-4xl mx-auto">
@@ -28,7 +84,7 @@ export function Output({ outputText, stats, onCopy, onReset, isLoading, ltWarnin
         <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
           {outputText ? (
             <p className="text-lg leading-relaxed text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
-              {outputText}
+              {renderTextWithSuspects(outputText, suspects, onKeepWord, onRejectWord)}
             </p>
           ) : (
             <div className="text-center text-gray-400 dark:text-gray-500 py-12">
