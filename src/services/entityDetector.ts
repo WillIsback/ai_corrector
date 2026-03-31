@@ -39,20 +39,27 @@ export function detectEntities(text: string, validWords: Set<string>): SuspectWo
   // Heuristic: words with capital letter mid-sentence
   const words = text.split(/(\s+)/);
   let currentOffset = 0;
+  let seenNonWhitespace = false;
 
   for (let i = 0; i < words.length; i++) {
     const word = words[i];
-    const isFirstWord = i === 0 || (i > 0 && words.slice(0, i).every((w) => /^\s+$/.test(w)));
-    const prevEndsWithPeriod = i > 0 && /[.!?]\s*$/.test(words[i - 1]);
+
+    if (/^\s+$/.test(word)) {
+      currentOffset += word.length;
+      continue;
+    }
+
+    // A word is at sentence start if we haven't seen any non-whitespace yet,
+    // or if the previous non-whitespace token ended with sentence-ending punctuation.
+    const isSentenceStart = !seenNonWhitespace || (i > 0 && /[.!?]\s*$/.test(words[i - 1]));
+    seenNonWhitespace = true;
 
     if (
       word.length > 1 &&
       /^[A-ZÀ-Ý]/.test(word) &&
-      !isFirstWord &&
-      !prevEndsWithPeriod &&
+      !isSentenceStart &&
       !seen.has(word.toLowerCase()) &&
-      !validWords.has(word) &&
-      !/^\s+$/.test(word)
+      !validWords.has(word)
     ) {
       seen.add(word.toLowerCase());
       suspects.push({
