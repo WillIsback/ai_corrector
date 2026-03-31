@@ -57,3 +57,17 @@ export interface LTMatch {
 export interface LTResponse {
   matches: LTMatch[];
 }
+
+// Entity protection types
+export interface SuspectWord {
+  placeholder: string; // "__PROT_0__"
+  originalText: string; // "Noota"
+  offset: number; // position dans le texte original
+  length: number; // longueur du mot original
+  wasCorrected: boolean; // true si LT aurait corrigé ce mot
+}
+
+export interface ProtectedText {
+  text: string; // texte avec placeholders
+  suspects: SuspectWord[];
+}
