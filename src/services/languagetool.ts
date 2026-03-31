@@ -1,4 +1,5 @@
-import type { LTMatch, LTResponse } from "../types";
+import type { LTMatch, LTResponse, SuspectWord } from "../types";
+import { restoreEntities } from "./entityDetector";
 
 const LT_API_BASE = import.meta.env.VITE_LT_API_BASE || "/corrector/api/lt";
 
@@ -46,9 +47,13 @@ export interface LTCheckResult {
   correctedText: string;
   matchCount: number;
   matches: LTMatch[];
+  suspects: SuspectWord[];
 }
 
-export async function checkLanguageTool(text: string): Promise<LTCheckResult> {
+export async function checkLanguageTool(
+  text: string,
+  suspects: SuspectWord[] = [],
+): Promise<LTCheckResult> {
   if (!text.trim()) {
     throw new Error("Le texte ne peut pas être vide");
   }
@@ -80,10 +85,21 @@ export async function checkLanguageTool(text: string): Promise<LTCheckResult> {
   const acronyms = await loadProtectedAcronyms();
   const correctedText = applyAutoFix(text, data.matches, acronyms);
 
+  // Restore protected entities
+  let finalText = correctedText;
+  let finalSuspects = suspects;
+
+  if (suspects.length > 0) {
+    const restored = restoreEntities(correctedText, suspects);
+    finalText = restored.text;
+    finalSuspects = restored.suspects;
+  }
+
   return {
-    correctedText,
+    correctedText: finalText,
     matchCount: data.matches.length,
     matches: data.matches,
+    suspects: finalSuspects,
   };
 }
 
