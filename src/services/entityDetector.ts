@@ -2,12 +2,14 @@ import nlp from "compromise";
 import type { SuspectWord } from "../types";
 
 /**
- * Detects words in text that might be proper nouns (entities).
+ * Detects ALL words in text that might be proper nouns (entities).
+ * Does NOT filter by validWords — detection is used to PROTECT words from LT,
+ * so even validated words must be detected to prevent LT from correcting them.
  *
  * Uses compromise.js NLP for people, places, organizations detection,
  * plus a heuristic for capitalized words appearing mid-sentence.
  */
-export function detectEntities(text: string, validWords: Set<string>): string[] {
+export function detectEntities(text: string): string[] {
   const seen = new Set<string>();
   const entities: string[] = [];
 
@@ -23,8 +25,6 @@ export function detectEntities(text: string, validWords: Set<string>): string[] 
   for (const entity of nlpEntities) {
     const word = entity.text.trim();
     if (seen.has(word.toLowerCase())) continue;
-    if (validWords.has(word)) continue;
-
     seen.add(word.toLowerCase());
     entities.push(word);
   }
@@ -47,26 +47,32 @@ export function detectEntities(text: string, validWords: Set<string>): string[] 
       word.length > 1 &&
       /^[A-ZÀ-Ý]/.test(word) &&
       !isSentenceStart &&
-      !seen.has(word.toLowerCase()) &&
-      !validWords.has(word)
+      !seen.has(word.toLowerCase())
     ) {
       seen.add(word.toLowerCase());
       entities.push(word);
     }
   }
 
+  console.log(`[detectEntities] Found ${entities.length} entities:`, entities);
   return entities;
 }
 
 /**
  * Finds entity positions in the corrected output text.
- * For each detected entity from the input, searches for it in the output
- * and returns SuspectWord entries with correct offsets.
+ * Only marks entities that are NOT in validWords (already validated by user).
  */
-export function markEntitiesInOutput(outputText: string, entities: string[]): SuspectWord[] {
+export function markEntitiesInOutput(
+  outputText: string,
+  entities: string[],
+  validWords: Set<string> = new Set(),
+): SuspectWord[] {
   const suspects: SuspectWord[] = [];
 
   for (const entity of entities) {
+    // Skip words the user has already validated
+    if (validWords.has(entity)) continue;
+
     const index = outputText.toLowerCase().indexOf(entity.toLowerCase());
     if (index >= 0) {
       suspects.push({

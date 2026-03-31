@@ -108,9 +108,9 @@ export function useCorrector() {
     abortControllerRef.current = controller;
 
     try {
-      // Detect entities in the input text (for marking later)
+      // Detect ALL entities in input (to protect from LT)
       const validWords = await loadValidWords();
-      const detectedEntities = detectEntities(textContent, validWords);
+      const detectedEntities = detectEntities(textContent);
       const entityRanges = getEntityOffsets(textContent, detectedEntities);
 
       // Pre-fire LT on original text (skip corrections on entity words)
@@ -148,8 +148,8 @@ export function useCorrector() {
         }
       }
 
-      // Mark detected entities in the final output text
-      const outputSuspects = markEntitiesInOutput(finalText, detectedEntities);
+      // Mark detected entities in the final output (skip already validated words)
+      const outputSuspects = markEntitiesInOutput(finalText, detectedEntities, validWords);
 
       const originalLength = textContent.length;
       const correctedLength = finalText.length;

@@ -26,7 +26,13 @@ const server = Bun.serve({
   port: PORT,
   async fetch(req: Request): Promise<Response> {
     const url = new URL(req.url);
-    const path = url.pathname;
+    let path = url.pathname;
+
+    // Normalize path: Caddy's handle_path strips /corrector prefix,
+    // so re-add it for API routes that arrive without the prefix.
+    if ((path.startsWith("/api/") || path.startsWith("/v1/")) && !path.startsWith("/corrector/")) {
+      path = `/corrector${path}`;
+    }
 
     // === API: Valid Words ===
     if (path === "/corrector/api/valid-words") {
