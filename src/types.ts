@@ -58,16 +58,9 @@ export interface LTResponse {
   matches: LTMatch[];
 }
 
-// Entity protection types
+// Entity types
 export interface SuspectWord {
-  placeholder: string; // "__PROT_0__"
   originalText: string; // "Noota"
-  offset: number; // position in original text
-  length: number; // length of original word
-  wasCorrected: boolean; // true if LT would have corrected this word
-}
-
-export interface ProtectedText {
-  text: string; // text with placeholders
-  suspects: SuspectWord[];
+  offset: number; // position in the corrected output text
+  length: number; // length of the word
 }

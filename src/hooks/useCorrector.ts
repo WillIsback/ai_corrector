@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { detectEntities, protectEntities } from "../services/entityDetector";
+import { detectEntities, markEntitiesInOutput } from "../services/entityDetector";
 import { checkLanguageTool } from "../services/languagetool";
 import { addValidWord, loadValidWords } from "../services/validWords";
 import type { CorrectionSettings, CorrectionStats, SuspectWord } from "../types";
@@ -29,16 +29,10 @@ export function useCorrector() {
   const [ltWarning, setLtWarning] = useState<string | null>(null);
   const [suspects, setSuspects] = useState<SuspectWord[]>([]);
 
-  // Ref to track if a correction is running
   const isRunningRef = useRef(false);
-
-  // Expose isRunning state for consumers
   const [isRunning, setIsRunning] = useState(false);
-
-  // Ref for AbortController to cancel LT requests
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Load settings from localStorage on mount
   useEffect(() => {
     try {
       const savedSettings = localStorage.getItem("ai-corrector:settings");
@@ -50,10 +44,8 @@ export function useCorrector() {
     }
   }, []);
 
-  // Ref to track the debounce timeout for localStorage writes
   const localStorageTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Cleanup on unmount - abort any pending requests
   useEffect(() => {
     return () => {
       if (abortControllerRef.current) {
@@ -65,14 +57,11 @@ export function useCorrector() {
     };
   }, []);
 
-  // Debounced localStorage write - non-blocking for rendering
   useEffect(() => {
-    // Clear any pending timeout to debounce rapid changes
     if (localStorageTimeoutRef.current) {
       clearTimeout(localStorageTimeoutRef.current);
     }
 
-    // Debounce writes by 500ms
     localStorageTimeoutRef.current = setTimeout(() => {
       try {
         localStorage.setItem("ai-corrector:settings", JSON.stringify(settings));
@@ -89,7 +78,6 @@ export function useCorrector() {
   }, [settings]);
 
   const handleCorrect = useCallback(async () => {
-    // Prevent multiple concurrent corrections
     if (isRunningRef.current) {
       return;
     }
@@ -105,6 +93,7 @@ export function useCorrector() {
     setError(null);
     setOutputText("");
     setLtWarning(null);
+    setSuspects([]);
     setStats({
       processingTime: 0,
       modificationCount: 0,
@@ -115,28 +104,20 @@ export function useCorrector() {
     const startTime = performance.now();
     let currentText = textContent;
 
-    // Create new AbortController for this request
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
     try {
-      // Load valid words and detect entities before LT
-      let currentSuspects: SuspectWord[] = [];
-      if (settings.ltEnabled && settings.ltPreFire) {
-        const validWords = await loadValidWords();
-        currentSuspects = detectEntities(currentText, validWords);
-        if (currentSuspects.length > 0) {
-          currentText = protectEntities(currentText, currentSuspects);
-        }
-      }
+      // Detect entities in the input text (for marking later)
+      const validWords = await loadValidWords();
+      const detectedEntities = detectEntities(textContent, validWords);
 
-      // Pre-fire LT with protected text
+      // Pre-fire LT on original text (no placeholder protection)
       if (settings.ltEnabled && settings.ltPreFire) {
         try {
-          const preResult = await checkLanguageTool(currentText, currentSuspects);
+          const preResult = await checkLanguageTool(currentText);
           if (preResult.matchCount > 0 && preResult.correctedText !== currentText) {
             currentText = preResult.correctedText;
-            currentSuspects = preResult.suspects;
             setStats((prev) => ({ ...prev, ltPreCorrections: preResult.matchCount }));
           }
         } catch (e) {
@@ -166,14 +147,15 @@ export function useCorrector() {
         }
       }
 
+      // Mark detected entities in the final output text
+      const outputSuspects = markEntitiesInOutput(finalText, detectedEntities);
+
       const originalLength = textContent.length;
       const correctedLength = finalText.length;
       const modificationCount =
         originalLength !== correctedLength ? Math.abs(correctedLength - originalLength) : 0;
 
-      // Store suspects for UI
-      setSuspects(currentSuspects);
-
+      setSuspects(outputSuspects);
       setOutputText(finalText);
       setStats((prev) => ({
         ...prev,
@@ -181,7 +163,6 @@ export function useCorrector() {
         modificationCount,
       }));
     } catch (err) {
-      // Ignore abort errors
       if (err instanceof Error && err.name === "AbortError") {
         return;
       }

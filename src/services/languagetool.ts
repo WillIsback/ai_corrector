@@ -1,5 +1,4 @@
-import type { LTMatch, LTResponse, SuspectWord } from "../types";
-import { restoreEntities } from "./entityDetector";
+import type { LTMatch, LTResponse } from "../types";
 
 const LT_API_BASE = import.meta.env.VITE_LT_API_BASE || "/corrector/api/lt";
 
@@ -47,13 +46,9 @@ export interface LTCheckResult {
   correctedText: string;
   matchCount: number;
   matches: LTMatch[];
-  suspects: SuspectWord[];
 }
 
-export async function checkLanguageTool(
-  text: string,
-  suspects: SuspectWord[] = [],
-): Promise<LTCheckResult> {
+export async function checkLanguageTool(text: string): Promise<LTCheckResult> {
   if (!text.trim()) {
     throw new Error("Le texte ne peut pas être vide");
   }
@@ -83,40 +78,12 @@ export async function checkLanguageTool(
 
   const data: LTResponse = await response.json();
   const acronyms = await loadProtectedAcronyms();
-
-  // Filter out LT matches that overlap with protected placeholders
-  let filteredMatches = data.matches;
-  if (suspects.length > 0) {
-    const placeholderRanges = suspects
-      .map((s) => ({
-        start: text.indexOf(s.placeholder),
-        end: text.indexOf(s.placeholder) + s.placeholder.length,
-      }))
-      .filter((r) => r.start >= 0);
-
-    filteredMatches = data.matches.filter((m) => {
-      const matchEnd = m.offset + m.length;
-      return !placeholderRanges.some((r) => m.offset < r.end && matchEnd > r.start);
-    });
-  }
-
-  const correctedText = applyAutoFix(text, filteredMatches, acronyms);
-
-  // Restore protected entities
-  let finalText = correctedText;
-  let finalSuspects = suspects;
-
-  if (suspects.length > 0) {
-    const restored = restoreEntities(correctedText, suspects);
-    finalText = restored.text;
-    finalSuspects = restored.suspects;
-  }
+  const correctedText = applyAutoFix(text, data.matches, acronyms);
 
   return {
-    correctedText: finalText,
+    correctedText,
     matchCount: data.matches.length,
     matches: data.matches,
-    suspects: finalSuspects,
   };
 }
 
@@ -130,17 +97,14 @@ function isProtectedByAcronym(
   const upperText = matchedText.toUpperCase();
   const cleanedText = upperText.replace(/[^A-Z0-9]/g, "");
 
-  // Protect acronyms from dictionary
   if (acronyms.has(cleanedText)) {
     return true;
   }
 
-  // Protect ALL UPPERCASE strings with 3+ chars (like COSSIM, DGCCRF, etc.)
   if (matchedText === upperText && cleanedText.length >= 3) {
     return true;
   }
 
-  // Check partial match with known acronyms
   for (const acronym of acronyms) {
     if (cleanedText.includes(acronym) || acronym.includes(cleanedText)) {
       if (
