@@ -14,7 +14,7 @@ describe('E2E - Real LanguageTool', () => {
     const available = await checkLTAvailable()
     
     if (!available) {
-      console.log('Skip: LT server not available (localhost:3001)')
+      console.log('Skip: LT server not available (localhost:3002)')
       return
     }
 

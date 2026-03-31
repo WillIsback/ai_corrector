@@ -1,6 +1,6 @@
 import { LTMatch, LTResponse } from '../types';
 
-const LT_API_BASE = 'http://localhost:3001';
+const LT_API_BASE = import.meta.env.VITE_LT_API_BASE || 'http://127.0.0.1:3002';
 
 export interface LTCheckResult {
   correctedText: string;
@@ -19,9 +19,9 @@ export async function checkLanguageTool(text: string): Promise<LTCheckResult> {
   const response = await fetch(`${LT_API_BASE}/v2/check`, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
+      'Content-Type': 'application/x-www-form-urlencoded',
     },
-    body: JSON.stringify({
+    body: new URLSearchParams({
       text,
       language: 'fr',
     }),
@@ -50,15 +50,19 @@ function applyAutoFix(text: string, matches: LTMatch[]): string {
   }
 
   const validMatches = matches
-    .filter(m => m.replacements.length > 0)
+    .filter(m => m.replacements && m.replacements.length > 0)
     .sort((a, b) => b.offset - a.offset);
 
   let result = text;
   for (const match of validMatches) {
     const firstReplacement = match.replacements[0];
+    const replacementText = typeof firstReplacement === 'string' 
+      ? firstReplacement 
+      : (firstReplacement as { value: string }).value;
+    
     result = 
       result.slice(0, match.offset) + 
-      firstReplacement + 
+      replacementText + 
       result.slice(match.offset + match.length);
   }
 

@@ -13,10 +13,10 @@ export function LTSetupBanner({ onDismiss }: Props) {
               LanguageTool n'est pas disponible
             </p>
             <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">
-              Lancez le conteneur Docker pour activer la correction automatique:
+              Lancez le conteneur Docker avec docker compose pour activer la correction:
             </p>
             <code className="block mt-1 text-xs bg-amber-100 dark:bg-amber-800 px-2 py-1 rounded font-mono">
-              docker run --rm -p 3001:3001 erik.UUID/languagetool:latest
+              docker compose up -d
             </code>
           </div>
         </div>

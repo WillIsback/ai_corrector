@@ -1,13 +1,11 @@
 import { useState, useCallback, useEffect } from 'react';
 import { correctText } from '../utils/api';
-import { computeDiff } from '../utils/diff';
 import { checkLanguageTool } from '../services/languagetool';
-import { CorrectionSettings, DiffChunk, CorrectionStats } from '../types';
+import { CorrectionSettings, CorrectionStats } from '../types';
 
 export function useCorrector() {
   const [textContent, setTextContent] = useState('')
   const [outputText, setOutputText] = useState('')
-  const [diffChunks, setDiffChunks] = useState<DiffChunk[]>([])
   const [settings, setSettings] = useState<CorrectionSettings>({
     mode: 'formel',
     fixGrammar: true,
@@ -16,7 +14,7 @@ export function useCorrector() {
     fixStyle: true,
     ltEnabled: true,
     ltPreFire: true,
-    ltPostFire: true,
+    ltPostFire: false,
   })
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -53,13 +51,11 @@ export function useCorrector() {
     setIsLoading(true)
     setError(null)
     setOutputText('')
-    setDiffChunks([])
     setLtWarning(null)
     setStats({ processingTime: 0, modificationCount: 0, ltPreCorrections: 0, ltPostCorrections: 0 })
 
     const startTime = performance.now()
     let currentText = textContent
-    let modificationCount = 0
 
     try {
       // Pre-fire LT
@@ -67,15 +63,12 @@ export function useCorrector() {
         try {
           const preResult = await checkLanguageTool(currentText);
           if (preResult.matchCount > 0 && preResult.correctedText !== currentText) {
-            const preDiff = computeDiff(currentText, preResult.correctedText, 'lt_pre');
-            setDiffChunks(prev => [...prev, ...preDiff]);
-            modificationCount += preDiff.filter(chunk => chunk.type !== 'unchanged').length;
             currentText = preResult.correctedText;
             setStats(prev => ({ ...prev, ltPreCorrections: preResult.matchCount }));
           }
         } catch (e) {
           console.warn('Pre-fire LT failed:', e);
-          setLtWarning('Pre-fire correction skipped (LanguageTool unavailable)');
+          setLtWarning('Pre-correction LanguageTool non disponible');
         }
       }
 
@@ -86,28 +79,25 @@ export function useCorrector() {
         throw new Error('LLM returned empty response')
       }
 
-      const llmDiff = computeDiff(currentText, llmCorrected, 'llm');
-      setDiffChunks(prev => [...prev, ...llmDiff]);
-      modificationCount += llmDiff.filter(chunk => chunk.type !== 'unchanged').length;
-      currentText = llmCorrected;
-
-      // Post-fire LT
-      let finalText = currentText;
+      // Post-fire LT (optional)
+      let finalText = llmCorrected;
       if (settings.ltEnabled && settings.ltPostFire) {
         try {
-          const postResult = await checkLanguageTool(currentText);
-          if (postResult.matchCount > 0 && postResult.correctedText !== currentText) {
-            const postDiff = computeDiff(currentText, postResult.correctedText, 'lt_post');
-            setDiffChunks(prev => [...prev, ...postDiff]);
-            modificationCount += postDiff.filter(chunk => chunk.type !== 'unchanged').length;
+          const postResult = await checkLanguageTool(llmCorrected);
+          if (postResult.matchCount > 0 && postResult.correctedText !== llmCorrected) {
             finalText = postResult.correctedText;
             setStats(prev => ({ ...prev, ltPostCorrections: postResult.matchCount }));
           }
         } catch (e) {
           console.warn('Post-fire LT failed:', e);
-          setLtWarning('Post-fire correction skipped (LanguageTool unavailable)');
         }
       }
+
+      const originalLength = textContent.length;
+      const correctedLength = finalText.length;
+      const modificationCount = originalLength !== correctedLength 
+        ? Math.abs(correctedLength - originalLength) 
+        : 0;
 
       setOutputText(finalText)
       setStats(prev => ({
@@ -124,12 +114,11 @@ export function useCorrector() {
     } finally {
       setIsLoading(false)
     }
-  }, [settings])
+  }, [textContent, settings])
 
   const handleReset = useCallback(() => {
     setTextContent('')
     setOutputText('')
-    setDiffChunks([])
     setStats({ processingTime: 0, modificationCount: 0, ltPreCorrections: 0, ltPostCorrections: 0 })
     setError(null)
     setLtWarning(null)
@@ -139,7 +128,6 @@ export function useCorrector() {
     textContent,
     setTextContent,
     outputText,
-    diffChunks,
     settings,
     setSettings,
     isLoading,

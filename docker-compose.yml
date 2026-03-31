@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  languagetool:
+    image: erikvl87/languagetool:latest
+    container_name: ai-corrector-lt
+    ports:
+      - "3002:8010"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8010/v2/languages"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s

@@ -119,10 +119,10 @@ export async function correctText(
   } catch (error) {
     if (error instanceof Error) {
       if (error.name === 'AbortError') {
-        throw new Error('Délai d\'attente dépassé')
+        throw new Error('Delai d\'attente depasse')
       }
       if (error.message.includes('Failed to fetch')) {
-        throw new Error('Impossible de contacter le serveur de correction. Vérifiez que le serveur LLM est lancé sur http://127.0.0.1:30000/v1. Test: curl -s http://127.0.0.1:30000/v1/models')
+        throw new Error('Impossible de contacter le serveur de correction. Verifiez que le serveur LLM est lance sur http://127.0.0.1:30000/v1')
       }
     }
     throw error
@@ -134,19 +134,15 @@ function buildSystemPrompt(
 ): string {
   const modeDescriptions: Record<CorrectionMode, string> = {
     formel: 'Formel et professionnel',
-    'semi-formel': 'Neutre, adapté au courrier',
-    informel: 'Décontracté, style conversationnel',
-    technical: 'Texte technique, clarté et précision',
+    'semi-formel': 'Neutre, adapte au courrier',
+    informel: 'Decontracte, style conversationnel',
+    technical: 'Texte technique, clarte et precision',
   }
 
   const activeCorrections = Object.entries(settings)
-    .filter(([_, value]) => value === true)
+    .filter(([, value]) => value === true)
     .map(([key]) => key)
     .join(', ')
 
-  return `Tu es un correcteur rédactionnel expert en français. 
-Ton rôle est de corriger la grammaire, l'orthographe, la syntaxe et le style du texte fourni.
-Conserve scrupuleusement le ton de l'auteur et le sens du message.
-Applique le mode de correction suivant: ${modeDescriptions[settings.mode]} (${activeCorrections || 'toutes'}).
-Renvoie uniquement le texte corrigé, sans commentaires ni introductions.`
+  return 'Tu es un correcteur editorial expert en francais. Corrige UNIQUEMENT le texte fourni. Sois precis et ne change que ce qui necessite une correction. Mode: ' + modeDescriptions[settings.mode] + ' (' + (activeCorrections || 'toutes') + '). Renvoie uniquement le texte corrige en une seule fois, sans historique des modifications, sans version avant/apres, sans commentaires ou annotations, sans markdown, sans repetitions du texte.'
 }

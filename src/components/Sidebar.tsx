@@ -10,7 +10,7 @@ const modeLabels: Record<CorrectionMode, string> = {
   formel: 'Formel / Professionnel',
   'semi-formel': 'Semi-formel',
   informel: 'Informel / Chat',
-  technical: 'Technical / Clair',
+  technical: 'Technique / Clair',
 }
 
 export function Sidebar({ settings, setSettings }: Props) {
@@ -82,7 +82,7 @@ export function Sidebar({ settings, setSettings }: Props) {
       </div>
 
       <div className="mt-6">
-        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Corrections à appliquer</h3>
+        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Corrections a appliquer</h3>
         
         <div className="space-y-2">
           <label className="flex items-center gap-2">
@@ -127,44 +127,33 @@ export function Sidebar({ settings, setSettings }: Props) {
         </div>
       </div>
 
-      {settings.ltEnabled && (
-        <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">LanguageTool</h3>
-          
-          <div className="space-y-2">
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={settings.ltPreFire}
-                onChange={(e) => setSettings({ ...settings, ltPreFire: e.target.checked })}
-                className="rounded border-gray-300 text-orange-600 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700"
-              />
-              <span className="text-sm text-gray-900 dark:text-gray-100">Pré-correction</span>
-            </label>
-            
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={settings.ltPostFire}
-                onChange={(e) => setSettings({ ...settings, ltPostFire: e.target.checked })}
-                className="rounded border-gray-300 text-orange-600 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700"
-              />
-              <span className="text-sm text-gray-900 dark:text-gray-100">Post-correction</span>
-            </label>
-          </div>
-        </div>
-      )}
-
       <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={settings.ltEnabled}
-            onChange={(e) => setSettings({ ...settings, ltEnabled: e.target.checked })}
-            className="rounded border-gray-300 text-orange-600 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700"
-          />
-          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">Activer LanguageTool</span>
-        </label>
+        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+          LanguageTool 
+          <span className="text-xs font-normal text-gray-500 ml-1">(toujours actif)</span>
+        </h3>
+        
+        <div className="space-y-2">
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={settings.ltPreFire}
+              onChange={(e) => setSettings({ ...settings, ltPreFire: e.target.checked })}
+              className="rounded border-gray-300 text-orange-600 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700"
+            />
+            <span className="text-sm text-gray-900 dark:text-gray-100">Pre-correction LLM</span>
+          </label>
+          
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={settings.ltPostFire}
+              onChange={(e) => setSettings({ ...settings, ltPostFire: e.target.checked })}
+              className="rounded border-gray-300 text-orange-600 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-700"
+            />
+            <span className="text-sm text-gray-900 dark:text-gray-100">Post-correction LLM</span>
+          </label>
+        </div>
       </div>
     </aside>
   )

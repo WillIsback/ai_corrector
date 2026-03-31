@@ -10,7 +10,7 @@ const localStorageMock = {
 }
 vi.stubGlobal('localStorage', localStorageMock)
 
-// Import the hook (without module mocks - use the real implementation)
+// Import the hook
 import { useCorrector } from '../../src/hooks/useCorrector'
 
 describe('Pipeline - Integration', () => {
@@ -24,7 +24,7 @@ describe('Pipeline - Integration', () => {
     expect(result.current.error).toBe('Veuillez entrer du texte')
   })
 
-  it('pipeline_setTextContent - définit le texte', async () => {
+  it('pipeline_setTextContent - definit le texte', async () => {
     const { result } = renderHook(() => useCorrector())
     
     await act(async () => {
@@ -34,25 +34,29 @@ describe('Pipeline - Integration', () => {
     expect(result.current.textContent).toBe('Bonjour')
   })
 
-  it('pipeline_defaultSettings - vérifie les paramètres par défaut', () => {
+  it('pipeline_defaultSettings - verifie les parametres par defaut', () => {
     const { result } = renderHook(() => useCorrector())
     
     expect(result.current.settings.ltEnabled).toBe(true)
     expect(result.current.settings.ltPreFire).toBe(true)
-    expect(result.current.settings.ltPostFire).toBe(true)
+    expect(result.current.settings.ltPostFire).toBe(false)
+    expect(result.current.settings.fixGrammar).toBe(true)
+    expect(result.current.settings.fixSpelling).toBe(true)
+    expect(result.current.settings.fixSyntax).toBe(true)
+    expect(result.current.settings.fixStyle).toBe(true)
   })
 
-  it('pipeline_updateSettings - met à jour les paramètres', async () => {
+  it('pipeline_updateSettings - met a jour les parametres', async () => {
     const { result } = renderHook(() => useCorrector())
     
     await act(async () => {
-      result.current.setSettings({ ...result.current.settings, ltEnabled: false })
+      result.current.setSettings({ ...result.current.settings, mode: 'informel' })
     })
     
-    expect(result.current.settings.ltEnabled).toBe(false)
+    expect(result.current.settings.mode).toBe('informel')
   })
 
-  it('pipeline_handleReset - reset l\'état', async () => {
+  it('pipeline_handleReset - reset etat', async () => {
     const { result } = renderHook(() => useCorrector())
     
     await act(async () => {
@@ -65,13 +69,12 @@ describe('Pipeline - Integration', () => {
     expect(result.current.error).toBeNull()
   })
 
-  it('pipeline_initialState - vérifie l\'état initial', () => {
+  it('pipeline_initialState - verifie etat initial', () => {
     const { result } = renderHook(() => useCorrector())
     
     expect(result.current.textContent).toBe('')
     expect(result.current.outputText).toBe('')
     expect(result.current.isLoading).toBe(false)
     expect(result.current.error).toBeNull()
-    expect(result.current.diffChunks).toEqual([])
   })
 })

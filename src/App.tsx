@@ -12,12 +12,13 @@ function App() {
   const {
     textContent,
     setTextContent,
-    diffChunks,
+    outputText,
     settings,
     setSettings,
     isLoading,
     error,
     stats,
+    ltWarning,
     handleCorrect,
     handleReset,
   } = useCorrector()
@@ -49,10 +50,8 @@ function App() {
 
   const handleCopySuccess = (text: string) => {
     navigator.clipboard.writeText(text)
-    setToast({ id: `copy-${Date.now()}-${Math.random().toString(36).substring(7)}`, message: 'Texte copié dans le presse-papier !', type: 'success' })
+    setToast({ id: `copy-${Date.now()}-${Math.random().toString(36).substring(7)}`, message: 'Texte copie dans le presse-papier !', type: 'success' })
   }
-
-
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-200">
@@ -77,11 +76,12 @@ function App() {
         />
         
         <Output 
-          diffChunks={diffChunks}
+          outputText={outputText}
           stats={stats}
           onCopy={handleCopySuccess}
           onReset={handleReset}
           isLoading={isLoading}
+          ltWarning={ltWarning}
         />
       </div>
 
