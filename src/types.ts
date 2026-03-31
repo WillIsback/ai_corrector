@@ -62,12 +62,12 @@ export interface LTResponse {
 export interface SuspectWord {
   placeholder: string; // "__PROT_0__"
   originalText: string; // "Noota"
-  offset: number; // position dans le texte original
-  length: number; // longueur du mot original
-  wasCorrected: boolean; // true si LT aurait corrigé ce mot
+  offset: number; // position in original text
+  length: number; // length of original word
+  wasCorrected: boolean; // true if LT would have corrected this word
 }
 
 export interface ProtectedText {
-  text: string; // texte avec placeholders
+  text: string; // text with placeholders
   suspects: SuspectWord[];
 }
