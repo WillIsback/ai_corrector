@@ -6,13 +6,21 @@ export function useLanguageTool() {
   const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
+
     async function check() {
       setIsChecking(true);
       const available = await checkLTAvailable();
-      setIsAvailable(available);
-      setIsChecking(false);
+      if (!cancelled) {
+        setIsAvailable(available);
+        setIsChecking(false);
+      }
     }
     check();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return { isAvailable, isChecking };

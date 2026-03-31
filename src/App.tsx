@@ -60,11 +60,7 @@ function App() {
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-200">
       {!ltAvailable && <LTSetupBanner />}
-      <Header
-        theme={theme}
-        onToggleTheme={() => setTheme(theme === "light" ? "dark" : "light")}
-        onOpenSettings={() => {}}
-      />
+      <Header theme={theme} onToggleTheme={() => setTheme(theme === "light" ? "dark" : "light")} />
 
       <div className="flex flex-1 overflow-hidden">
         <Sidebar settings={settings} setSettings={setSettings} />

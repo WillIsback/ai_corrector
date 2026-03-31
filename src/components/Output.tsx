@@ -18,10 +18,10 @@ export function Output({ outputText, stats, onCopy, onReset, isLoading, ltWarnin
       <div className="max-w-4xl mx-auto">
         <div className="mb-4">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-            Resultat corrige
+            Résultat corrigé
           </h2>
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Le texte ci-dessous a ete corrige selon vos parametres.
+            Le texte ci-dessous a été corrigé selon vos paramètres.
           </p>
         </div>
 
@@ -66,7 +66,7 @@ export function Output({ outputText, stats, onCopy, onReset, isLoading, ltWarnin
 
               <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
                 <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
-                  Caracteres
+                  Caractères
                 </h3>
                 <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                   {stats.modificationCount}
@@ -116,7 +116,7 @@ export function Output({ outputText, stats, onCopy, onReset, isLoading, ltWarnin
                   onClick={onReset}
                   className="px-6 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-white rounded-lg font-semibold transition-colors"
                 >
-                  Reinitialiser
+                  Réinitialiser
                 </button>
               )}
             </div>

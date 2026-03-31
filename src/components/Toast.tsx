@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 
 export type ToastType = "success" | "error" | "warning";
 
@@ -14,12 +14,26 @@ interface Props {
 }
 
 export function Toast({ toast, onClose }: Props) {
+  const handleClose = useCallback(() => {
+    onClose();
+  }, [onClose]);
+
   useEffect(() => {
     if (toast) {
-      const timer = setTimeout(onClose, 3000);
+      const timer = setTimeout(handleClose, 3000);
       return () => clearTimeout(timer);
     }
-  }, [toast, onClose]);
+  }, [toast, handleClose]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && toast) {
+        handleClose();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [toast, handleClose]);
 
   if (!toast) return null;
 
@@ -38,10 +52,17 @@ export function Toast({ toast, onClose }: Props) {
 
   return (
     <div
+      role="alert"
+      aria-live="polite"
       className={`fixed top-6 right-6 px-6 py-4 rounded-lg shadow-lg text-white flex items-center gap-3 z-50 animate-fade-in-out ${getColorClass()}`}
     >
       <span>{toast.message}</span>
-      <button type="button" onClick={onClose} className="opacity-75 hover:opacity-100">
+      <button
+        type="button"
+        onClick={handleClose}
+        aria-label="Fermer"
+        className="opacity-75 hover:opacity-100"
+      >
         ✕
       </button>
     </div>

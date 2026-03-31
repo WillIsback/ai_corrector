@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { checkLanguageTool } from "../services/languagetool";
 import type { CorrectionSettings, CorrectionStats } from "../types";
 import { correctText } from "../utils/api";
@@ -26,28 +26,78 @@ export function useCorrector() {
   });
   const [ltWarning, setLtWarning] = useState<string | null>(null);
 
-  useEffect(() => {
-    const savedSettings = localStorage.getItem("ai-corrector:settings");
+  // Ref to track if a correction is running
+  const isRunningRef = useRef(false);
 
-    if (savedSettings) {
-      try {
+  // Expose isRunning state for consumers
+  const [isRunning, setIsRunning] = useState(false);
+
+  // Ref for AbortController to cancel LT requests
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Load settings from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedSettings = localStorage.getItem("ai-corrector:settings");
+      if (savedSettings) {
         setSettings(JSON.parse(savedSettings));
-      } catch {
-        // Use defaults
       }
+    } catch {
+      // Use defaults
     }
   }, []);
 
+  // Ref to track the debounce timeout for localStorage writes
+  const localStorageTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Cleanup on unmount - abort any pending requests
   useEffect(() => {
-    localStorage.setItem("ai-corrector:settings", JSON.stringify(settings));
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      if (localStorageTimeoutRef.current) {
+        clearTimeout(localStorageTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Debounced localStorage write - non-blocking for rendering
+  useEffect(() => {
+    // Clear any pending timeout to debounce rapid changes
+    if (localStorageTimeoutRef.current) {
+      clearTimeout(localStorageTimeoutRef.current);
+    }
+
+    // Debounce writes by 500ms
+    localStorageTimeoutRef.current = setTimeout(() => {
+      try {
+        localStorage.setItem("ai-corrector:settings", JSON.stringify(settings));
+      } catch {
+        // Ignore storage errors
+      }
+    }, 500);
+
+    return () => {
+      if (localStorageTimeoutRef.current) {
+        clearTimeout(localStorageTimeoutRef.current);
+      }
+    };
   }, [settings]);
 
   const handleCorrect = useCallback(async () => {
+    // Prevent multiple concurrent corrections
+    if (isRunningRef.current) {
+      return;
+    }
+
     if (!textContent.trim()) {
       setError("Veuillez entrer du texte");
       return;
     }
 
+    isRunningRef.current = true;
+    setIsRunning(true);
     setIsLoading(true);
     setError(null);
     setOutputText("");
@@ -61,6 +111,10 @@ export function useCorrector() {
 
     const startTime = performance.now();
     let currentText = textContent;
+
+    // Create new AbortController for this request
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
     try {
       // Pre-fire LT
@@ -110,13 +164,20 @@ export function useCorrector() {
         modificationCount,
       }));
     } catch (err) {
+      // Ignore abort errors
+      if (err instanceof Error && err.name === "AbortError") {
+        return;
+      }
       if (err instanceof Error) {
         setError(err.message);
       } else {
         setError("Une erreur inconnue est survenue");
       }
     } finally {
+      isRunningRef.current = false;
+      setIsRunning(false);
       setIsLoading(false);
+      abortControllerRef.current = null;
     }
   }, [textContent, settings]);
 
@@ -140,6 +201,7 @@ export function useCorrector() {
     settings,
     setSettings,
     isLoading,
+    isRunning,
     error,
     stats,
     ltWarning,
