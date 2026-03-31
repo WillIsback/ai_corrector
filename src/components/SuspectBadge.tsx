@@ -27,32 +27,35 @@ export function SuspectWord({ word, onKeep, onReject }: Props) {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="underline decoration-wavy decoration-orange-400 cursor-pointer
-                   hover:bg-orange-50 dark:hover:bg-orange-900/30 rounded px-0.5
-                   transition-colors"
+        className="relative underline decoration-wavy decoration-amber-400/80 dark:decoration-amber-500/60
+          cursor-pointer px-0.5 -mx-0.5 rounded
+          hover:bg-amber-50 dark:hover:bg-amber-500/10
+          text-amber-800 dark:text-amber-200
+          transition-colors duration-150"
       >
         {word}
       </button>
 
       {isOpen && (
         <div
-          className="absolute top-full left-0 mt-1 z-50 bg-white dark:bg-gray-800
-                        border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg
-                        p-3 min-w-48"
+          className="absolute top-full left-0 mt-2 z-50 bg-white dark:bg-gray-800
+            border border-gray-200/80 dark:border-gray-700/80 rounded-2xl shadow-elevated
+            p-2 min-w-[200px] animate-scale-in"
         >
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-            &ldquo;{word}&rdquo; non reconnu par LanguageTool
+          <p className="text-xs text-gray-400 dark:text-gray-500 px-2 py-1.5 mb-1">
+            Non reconnu par LanguageTool
           </p>
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-0.5">
             <button
               type="button"
               onClick={() => {
                 onKeep();
                 setIsOpen(false);
               }}
-              className="text-sm px-3 py-1.5 bg-green-50 dark:bg-green-900/30
-                         text-green-700 dark:text-green-300 rounded hover:bg-green-100
-                         dark:hover:bg-green-900/50 text-left transition-colors"
+              className="text-sm px-3 py-2 rounded-xl
+                text-green-700 dark:text-green-300
+                hover:bg-green-50 dark:hover:bg-green-500/10
+                text-left transition-colors duration-150 font-medium"
             >
               Garder &ldquo;{word}&rdquo;
             </button>
@@ -62,9 +65,10 @@ export function SuspectWord({ word, onKeep, onReject }: Props) {
                 onReject();
                 setIsOpen(false);
               }}
-              className="text-sm px-3 py-1.5 bg-orange-50 dark:bg-orange-900/30
-                         text-orange-700 dark:text-orange-300 rounded hover:bg-orange-100
-                         dark:hover:bg-orange-900/50 text-left transition-colors"
+              className="text-sm px-3 py-2 rounded-xl
+                text-orange-700 dark:text-orange-300
+                hover:bg-orange-50 dark:hover:bg-orange-500/10
+                text-left transition-colors duration-150 font-medium"
             >
               Accepter correction
             </button>

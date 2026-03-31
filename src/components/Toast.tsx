@@ -37,16 +37,68 @@ export function Toast({ toast, onClose }: Props) {
 
   if (!toast) return null;
 
-  const getColorClass = () => {
+  const getStyles = () => {
     switch (toast.type) {
       case "success":
-        return "bg-green-500";
+        return "bg-gray-900/90 dark:bg-white/90 text-white dark:text-gray-900";
       case "error":
-        return "bg-red-500";
+        return "bg-red-600/90 text-white";
       case "warning":
-        return "bg-yellow-500";
+        return "bg-amber-500/90 text-white";
       default:
-        return "bg-gray-500";
+        return "bg-gray-900/90 text-white";
+    }
+  };
+
+  const getIcon = () => {
+    switch (toast.type) {
+      case "success":
+        return (
+          <svg
+            aria-hidden="true"
+            className="w-4 h-4 shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            strokeWidth={2.5}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M5 13l4 4L19 7" />
+          </svg>
+        );
+      case "error":
+        return (
+          <svg
+            aria-hidden="true"
+            className="w-4 h-4 shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            strokeWidth={2.5}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        );
+      case "warning":
+        return (
+          <svg
+            aria-hidden="true"
+            className="w-4 h-4 shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            strokeWidth={2.5}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M12 9v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        );
+      default:
+        return null;
     }
   };
 
@@ -54,16 +106,27 @@ export function Toast({ toast, onClose }: Props) {
     <div
       role="alert"
       aria-live="polite"
-      className={`fixed top-6 right-6 px-6 py-4 rounded-lg shadow-lg text-white flex items-center gap-3 z-50 animate-fade-in-out ${getColorClass()}`}
+      className={`fixed top-5 right-5 px-4 py-3 rounded-2xl shadow-elevated backdrop-blur-lg
+        flex items-center gap-2.5 z-50 animate-fade-in-out text-sm font-medium ${getStyles()}`}
     >
+      {getIcon()}
       <span>{toast.message}</span>
       <button
         type="button"
         onClick={handleClose}
         aria-label="Fermer"
-        className="opacity-75 hover:opacity-100"
+        className="ml-1 opacity-50 hover:opacity-100 transition-opacity"
       >
-        ✕
+        <svg
+          aria-hidden="true"
+          className="w-3.5 h-3.5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          strokeWidth={2.5}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
       </button>
     </div>
   );
