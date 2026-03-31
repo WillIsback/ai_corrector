@@ -10,10 +10,19 @@ export function useLanguageTool() {
 
     async function check() {
       setIsChecking(true);
-      const available = await checkLTAvailable();
-      if (!cancelled) {
-        setIsAvailable(available);
-        setIsChecking(false);
+      try {
+        const available = await checkLTAvailable();
+        if (!cancelled) {
+          setIsAvailable(available);
+        }
+      } catch {
+        if (!cancelled) {
+          setIsAvailable(false);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsChecking(false);
+        }
       }
     }
     check();

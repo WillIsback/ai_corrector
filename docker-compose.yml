@@ -5,7 +5,7 @@ services:
     image: erikvl87/languagetool:latest
     container_name: ai-corrector-lt
     ports:
-      - "3002:8010"
+      - "127.0.0.1:3002:8010"
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8010/v2/languages"]

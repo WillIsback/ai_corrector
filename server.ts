@@ -1,5 +1,4 @@
-// @ts-nocheck
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 const PORT = 25000;
@@ -8,6 +7,18 @@ const VALID_WORDS_PATH = join(import.meta.dir, "public", "data", "valid-words.js
 
 const LT_TARGET = "http://127.0.0.1:3002";
 const LLM_TARGET = "http://127.0.0.1:30000";
+
+function getCorsHeaders(req: Request): Headers {
+  const origin = req.headers.get("Origin") ?? "";
+  const allowed =
+    origin.includes(".ts.net") || origin.includes("localhost") || origin.includes("127.0.0.1");
+  const headers = new Headers();
+  headers.set("Content-Type", "application/json");
+  if (allowed) {
+    headers.set("Access-Control-Allow-Origin", origin);
+  }
+  return headers;
+}
 
 function readValidWords(): string[] {
   try {
@@ -19,10 +30,12 @@ function readValidWords(): string[] {
 }
 
 function writeValidWords(words: string[]): void {
-  writeFileSync(VALID_WORDS_PATH, `${JSON.stringify({ words }, null, 2)}\n`);
+  const tmpPath = `${VALID_WORDS_PATH}.tmp`;
+  writeFileSync(tmpPath, `${JSON.stringify({ words }, null, 2)}\n`);
+  renameSync(tmpPath, VALID_WORDS_PATH);
 }
 
-const server = Bun.serve({
+const _server = Bun.serve({
   port: PORT,
   async fetch(req: Request): Promise<Response> {
     const url = new URL(req.url);
@@ -36,19 +49,13 @@ const server = Bun.serve({
 
     // === API: Valid Words ===
     if (path === "/corrector/api/valid-words") {
-      const headers = {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-      };
+      const headers = getCorsHeaders(req);
 
       if (req.method === "OPTIONS") {
-        return new Response(null, {
-          headers: {
-            ...headers,
-            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type",
-          },
-        });
+        const corsHeaders = getCorsHeaders(req);
+        corsHeaders.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+        corsHeaders.set("Access-Control-Allow-Headers", "Content-Type");
+        return new Response(null, { headers: corsHeaders });
       }
 
       if (req.method === "GET") {
@@ -58,7 +65,7 @@ const server = Bun.serve({
       if (req.method === "POST") {
         try {
           const body = await req.json();
-          const word = body.word?.trim();
+          const word = typeof body.word === "string" ? body.word.trim() : "";
           if (!word || word.length > 100 || !/^[\p{L}''\-\s]+$/u.test(word)) {
             return new Response(JSON.stringify({ error: "Invalid word" }), {
               status: 400,
@@ -103,7 +110,12 @@ const server = Bun.serve({
         });
 
         const responseHeaders = new Headers(ltResponse.headers);
-        responseHeaders.set("Access-Control-Allow-Origin", "*");
+        const origin = req.headers.get("Origin") ?? "";
+        const allowed =
+          origin.includes(".ts.net") ||
+          origin.includes("localhost") ||
+          origin.includes("127.0.0.1");
+        responseHeaders.set("Access-Control-Allow-Origin", allowed ? origin : "");
 
         return new Response(ltResponse.body, {
           status: ltResponse.status,
@@ -131,7 +143,12 @@ const server = Bun.serve({
         });
 
         const responseHeaders = new Headers(llmResponse.headers);
-        responseHeaders.set("Access-Control-Allow-Origin", "*");
+        const origin = req.headers.get("Origin") ?? "";
+        const allowed =
+          origin.includes(".ts.net") ||
+          origin.includes("localhost") ||
+          origin.includes("127.0.0.1");
+        responseHeaders.set("Access-Control-Allow-Origin", allowed ? origin : "");
 
         return new Response(llmResponse.body, {
           status: llmResponse.status,

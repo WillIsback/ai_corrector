@@ -163,7 +163,7 @@ export async function checkLTAvailable(): Promise<boolean> {
   try {
     const response = await fetch(`${LT_API_BASE}/v2/languages`, {
       method: "GET",
-      signal: AbortSignal.timeout(2000),
+      signal: AbortSignal.timeout(5000),
     });
     return response.ok;
   } catch {
