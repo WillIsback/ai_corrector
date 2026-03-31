@@ -11,7 +11,8 @@
     "test:coverage": "vitest run --coverage",
     "lint": "biome lint .",
     "format": "biome format --write .",
-    "check": "biome check ."
+    "check": "biome check .",
+    "serve": "bun run server.ts"
   },
   "dependencies": {
     "compromise": "^14.15.0",
