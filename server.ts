@@ -1,6 +1,6 @@
 // @ts-nocheck
-import { existsSync, readFileSync, writeFileSync } from "fs";
-import { join } from "path";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 
 const PORT = 25000;
 const DIST_DIR = join(import.meta.dir, "dist");
@@ -19,7 +19,7 @@ function readValidWords(): string[] {
 }
 
 function writeValidWords(words: string[]): void {
-  writeFileSync(VALID_WORDS_PATH, JSON.stringify({ words }, null, 2) + "\n");
+  writeFileSync(VALID_WORDS_PATH, `${JSON.stringify({ words }, null, 2)}\n`);
 }
 
 const server = Bun.serve({
@@ -53,8 +53,8 @@ const server = Bun.serve({
         try {
           const body = await req.json();
           const word = body.word?.trim();
-          if (!word) {
-            return new Response(JSON.stringify({ error: "word is required" }), {
+          if (!word || word.length > 100 || !/^[\p{L}''\-\s]+$/u.test(word)) {
+            return new Response(JSON.stringify({ error: "Invalid word" }), {
               status: 400,
               headers,
             });
@@ -63,7 +63,14 @@ const server = Bun.serve({
           const words = readValidWords();
           if (!words.includes(word)) {
             words.push(word);
-            writeValidWords(words);
+            try {
+              writeValidWords(words);
+            } catch {
+              return new Response(JSON.stringify({ error: "Failed to save word" }), {
+                status: 500,
+                headers,
+              });
+            }
           }
 
           return new Response(JSON.stringify({ words }), { headers });
@@ -96,7 +103,7 @@ const server = Bun.serve({
           status: ltResponse.status,
           headers: responseHeaders,
         });
-      } catch (e) {
+      } catch {
         return new Response(JSON.stringify({ error: "LanguageTool unavailable" }), {
           status: 502,
           headers: { "Content-Type": "application/json" },
@@ -124,7 +131,7 @@ const server = Bun.serve({
           status: llmResponse.status,
           headers: responseHeaders,
         });
-      } catch (e) {
+      } catch {
         return new Response(JSON.stringify({ error: "LLM unavailable" }), {
           status: 502,
           headers: { "Content-Type": "application/json" },
@@ -135,12 +142,17 @@ const server = Bun.serve({
     // === Static Files ===
     let filePath = join(DIST_DIR, path === "/" ? "index.html" : path);
 
+    // Path traversal protection
+    const resolved = resolve(filePath);
+    if (!resolved.startsWith(DIST_DIR)) {
+      return new Response("Forbidden", { status: 403 });
+    }
+
     if (!existsSync(filePath)) {
       filePath = join(DIST_DIR, "index.html");
     }
 
-    const file = Bun.file(filePath);
-    return new Response(file);
+    return new Response(Bun.file(filePath));
   },
 });
 
