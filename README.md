@@ -6,6 +6,7 @@ Correcteur et reformateur de rédaction en français alimenté par LLM.
 
 - Node.js 18+
 - vLLM serveur (port 30000) ou API compatible OpenAI
+- LanguageTool (port 3002) - optionnel mais recommandé pour la correctiongrammaire
 
 **Important**: Si vous utilisez vLLM, configurez un proxy pour contourner les problèmes CORS.
 
@@ -30,6 +31,49 @@ VITE_LLM_MODEL_NAME=Intel/Qwen3-Coder-Next-int4-AutoRound
 Le serveur vLLM ne supporte pas les requêtes OPTIONS (preflight CORS). Pour résoudre cela, le proxy Vite redirige automatiquement les requêtes `/v1/*` vers le serveur LLM.
 
 **Si vous utilisez un autre serveur API**, assurez-vous qu'il supporte les CORS ou configurez un proxy dans `vite.config.ts`.
+
+## Accès distant (Tailscale)
+
+L'application est accessible via Caddy en HTTPS sur le réseau Tailscale :
+
+**URL :** https://spark-787d-1.tail6cba9f.ts.net/corrector
+
+### Configuration requise
+
+1. **Caddyfile** (`~/infra/caddy/Caddyfile`) doit contenir :
+   ```plaintext
+   spark-787d-1.tail6cba9f.ts.net {
+       # AI Corrector
+       handle /corrector* {
+           reverse_proxy host.docker.internal:25000
+       }
+       # LanguageTool API proxy (HTTPS → HTTP)
+       handle /corrector/api/lt* {
+           reverse_proxy host.docker.internal:3002
+       }
+   }
+   ```
+
+2. **vite.config.ts** doit inclure :
+   ```ts
+   server: {
+     allowedHosts: ['spark-787d-1.tail6cba9f.ts.net'],
+     origin: 'https://spark-787d-1.tail6cba9f.ts.net/corrector',
+     base: '/corrector/',
+   }
+   ```
+
+3. **languagetool.ts** utilise le proxy `/corrector/api/lt` pour éviter le contenu mixte (mixed content).
+
+### Renouvellement du certificat
+
+Le certificat Tailscale doit couvrir le domaine principal. Pour renouveler (mensuel) :
+```bash
+sudo tailscale cert --cert-file ~/infra/caddy/certs/cert.pem \
+                    --key-file  ~/infra/caddy/certs/key.pem \
+                    spark-787d-1.tail6cba9f.ts.net
+docker compose -f ~/infra/docker-compose.yml restart caddy
+```
 
 ## Development
 
