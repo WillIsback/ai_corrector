@@ -95,6 +95,7 @@ export interface LLMRequest {
     content: string;
   }>;
   temperature: number;
+  response_format?: { type: "json_object" };
   correction_mode?: string;
 }
 
@@ -113,7 +114,12 @@ export interface LLMResponse {
   }>;
 }
 
-export async function correctText(text: string, settings: CorrectionSettings): Promise<string> {
+export interface CorrectionResult {
+  text: string;
+  corrections: string[];
+}
+
+export async function correctText(text: string, settings: CorrectionSettings): Promise<CorrectionResult> {
   const systemPrompt = buildSystemPrompt(settings);
   const userPrompt = sanitizeInput(text);
 
@@ -124,6 +130,7 @@ export async function correctText(text: string, settings: CorrectionSettings): P
       { role: "user", content: userPrompt },
     ],
     temperature: 0.3,
+    response_format: { type: "json_object" },
     correction_mode: settings.mode,
   };
 
@@ -157,7 +164,16 @@ export async function correctText(text: string, settings: CorrectionSettings): P
     const data: LLMResponse = await response.json();
 
     if (data.choices?.[0]?.message) {
-      return data.choices[0].message.content.trim();
+      const raw = data.choices[0].message.content.trim();
+      try {
+        const parsed = JSON.parse(raw);
+        return {
+          text: parsed.texte_corrige ?? parsed.corrected_text ?? raw,
+          corrections: Array.isArray(parsed.corrections) ? parsed.corrections : [],
+        };
+      } catch {
+        return { text: raw, corrections: [] };
+      }
     }
 
     throw new Error("Invalid response format");
@@ -190,10 +206,12 @@ function buildSystemPrompt(settings: CorrectionSettings): string {
     .join(", ");
 
   return (
-    "Tu es un correcteur editorial expert en francais. Corrige UNIQUEMENT le texte fourni. Sois precis et ne change que ce qui necessite une correction. Mode: " +
-    modeDescriptions[settings.mode] +
-    " (" +
-    (activeCorrections || "toutes") +
-    "). Renvoie uniquement le texte corrige en une seule fois, sans historique des modifications, sans version avant/apres, sans commentaires ou annotations, sans markdown, sans repetitions du texte."
+    "Tu es un correcteur editorial expert en francais. Corrige UNIQUEMENT le texte fourni. " +
+    "Sois precis et ne change que ce qui necessite une correction. " +
+    "Mode: " + modeDescriptions[settings.mode] + " (" + (activeCorrections || "toutes") + "). " +
+    "Reponds UNIQUEMENT avec un objet JSON valide, sans markdown, sans texte avant ou apres, avec exactement ces deux champs:\n" +
+    '{"texte_corrige": "le texte corrige complet", "corrections": ["texte original -> texte corrige", ...]}\n' +
+    "Dans corrections, liste chaque modification sous la forme \"avant -> apres\". " +
+    "Si aucune correction n'est necessaire, retourne corrections vide []."
   );
 }

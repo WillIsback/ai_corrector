@@ -2,13 +2,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { detectEntities, getEntityOffsets, markEntitiesInOutput } from "../services/entityDetector";
 import { checkLanguageTool } from "../services/languagetool";
 import { addValidWord, loadValidWords } from "../services/validWords";
-import type { CorrectionSettings, CorrectionStats, DiffChunk, SuspectWord } from "../types";
+import type { CorrectionSettings, CorrectionStats, SuspectWord } from "../types";
 import { correctText } from "../utils/api";
-import { computeDiff } from "../utils/diff";
 
 export function useCorrector() {
   const [textContent, setTextContent] = useState("");
   const [outputText, setOutputText] = useState("");
+  const [corrections, setCorrections] = useState<string[]>([]);
   const [settings, setSettings] = useState<CorrectionSettings>({
     mode: "formel",
     fixGrammar: true,
@@ -29,7 +29,6 @@ export function useCorrector() {
   });
   const [ltWarning, setLtWarning] = useState<string | null>(null);
   const [suspects, setSuspects] = useState<SuspectWord[]>([]);
-  const [diffChunks, setDiffChunks] = useState<DiffChunk[]>([]);
 
   const isRunningRef = useRef(false);
   const [isRunning, setIsRunning] = useState(false);
@@ -94,9 +93,9 @@ export function useCorrector() {
     setIsLoading(true);
     setError(null);
     setOutputText("");
+    setCorrections([]);
     setLtWarning(null);
     setSuspects([]);
-    setDiffChunks([]);
     setStats({
       processingTime: 0,
       modificationCount: 0,
@@ -130,19 +129,19 @@ export function useCorrector() {
         }
       }
 
-      // LLM inference
-      const llmCorrected = await correctText(currentText, settings);
+      // LLM inference — returns structured { text, corrections }
+      const result = await correctText(currentText, settings);
 
-      if (!llmCorrected || llmCorrected.trim().length === 0) {
+      if (!result.text || result.text.trim().length === 0) {
         throw new Error("LLM returned empty response");
       }
 
-      // Post-fire LT (optional)
-      let finalText = llmCorrected;
+      // Post-fire LT (optional) — operates on plain text
+      let finalText = result.text;
       if (settings.ltEnabled && settings.ltPostFire) {
         try {
-          const postResult = await checkLanguageTool(llmCorrected);
-          if (postResult.matchCount > 0 && postResult.correctedText !== llmCorrected) {
+          const postResult = await checkLanguageTool(finalText);
+          if (postResult.matchCount > 0 && postResult.correctedText !== finalText) {
             finalText = postResult.correctedText;
             setStats((prev) => ({ ...prev, ltPostCorrections: postResult.matchCount }));
           }
@@ -154,14 +153,11 @@ export function useCorrector() {
       // Mark detected entities in the final output (skip already validated words)
       const outputSuspects = markEntitiesInOutput(finalText, detectedEntities, validWords);
 
-      const originalLength = textContent.length;
-      const correctedLength = finalText.length;
-      const modificationCount =
-        originalLength !== correctedLength ? Math.abs(correctedLength - originalLength) : 0;
+      const modificationCount = result.corrections.length;
 
       setSuspects(outputSuspects);
       setOutputText(finalText);
-      setDiffChunks(computeDiff(textContent, finalText));
+      setCorrections(result.corrections);
       setStats((prev) => ({
         ...prev,
         processingTime: Math.round(performance.now() - startTime),
@@ -187,7 +183,7 @@ export function useCorrector() {
   const handleReset = useCallback(() => {
     setTextContent("");
     setOutputText("");
-    setDiffChunks([]);
+    setCorrections([]);
     setStats({
       processingTime: 0,
       modificationCount: 0,
@@ -212,7 +208,7 @@ export function useCorrector() {
     textContent,
     setTextContent,
     outputText,
-    diffChunks,
+    corrections,
     settings,
     setSettings,
     isLoading,
