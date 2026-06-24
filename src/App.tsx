@@ -14,6 +14,7 @@ function App() {
     textContent,
     setTextContent,
     outputText,
+    diffChunks,
     settings,
     setSettings,
     isLoading,
@@ -77,6 +78,7 @@ function App() {
 
         <Output
           outputText={outputText}
+          diffChunks={diffChunks}
           suspects={suspects}
           onKeepWord={handleKeepWord}
           onRejectWord={handleRejectWord}

@@ -2,8 +2,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { detectEntities, getEntityOffsets, markEntitiesInOutput } from "../services/entityDetector";
 import { checkLanguageTool } from "../services/languagetool";
 import { addValidWord, loadValidWords } from "../services/validWords";
-import type { CorrectionSettings, CorrectionStats, SuspectWord } from "../types";
+import type { CorrectionSettings, CorrectionStats, DiffChunk, SuspectWord } from "../types";
 import { correctText } from "../utils/api";
+import { computeDiff } from "../utils/diff";
 
 export function useCorrector() {
   const [textContent, setTextContent] = useState("");
@@ -28,6 +29,7 @@ export function useCorrector() {
   });
   const [ltWarning, setLtWarning] = useState<string | null>(null);
   const [suspects, setSuspects] = useState<SuspectWord[]>([]);
+  const [diffChunks, setDiffChunks] = useState<DiffChunk[]>([]);
 
   const isRunningRef = useRef(false);
   const [isRunning, setIsRunning] = useState(false);
@@ -94,6 +96,7 @@ export function useCorrector() {
     setOutputText("");
     setLtWarning(null);
     setSuspects([]);
+    setDiffChunks([]);
     setStats({
       processingTime: 0,
       modificationCount: 0,
@@ -158,6 +161,7 @@ export function useCorrector() {
 
       setSuspects(outputSuspects);
       setOutputText(finalText);
+      setDiffChunks(computeDiff(textContent, finalText));
       setStats((prev) => ({
         ...prev,
         processingTime: Math.round(performance.now() - startTime),
@@ -183,6 +187,7 @@ export function useCorrector() {
   const handleReset = useCallback(() => {
     setTextContent("");
     setOutputText("");
+    setDiffChunks([]);
     setStats({
       processingTime: 0,
       modificationCount: 0,
@@ -207,6 +212,7 @@ export function useCorrector() {
     textContent,
     setTextContent,
     outputText,
+    diffChunks,
     settings,
     setSettings,
     isLoading,

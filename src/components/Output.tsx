@@ -1,9 +1,10 @@
 import type React from "react";
-import type { SuspectWord } from "../types";
+import type { DiffChunk, SuspectWord } from "../types";
 import { SuspectWord as SuspectBadge } from "./SuspectBadge";
 
 interface Props {
   outputText: string;
+  diffChunks: DiffChunk[];
   suspects: SuspectWord[];
   onKeepWord: (word: string) => void;
   onRejectWord: (word: string) => void;
@@ -60,6 +61,7 @@ function renderTextWithSuspects(
 
 export function Output({
   outputText,
+  diffChunks,
   suspects,
   onKeepWord,
   onRejectWord,
@@ -69,6 +71,7 @@ export function Output({
   isLoading,
   ltWarning,
 }: Props) {
+  const hasChanges = diffChunks.some((c) => c.type !== "unchanged");
   return (
     <div className="flex-1 flex flex-col min-w-0 border-l border-gray-200/50 dark:border-gray-700/50">
       <div className="flex-1 p-6 overflow-y-auto">
@@ -210,6 +213,43 @@ export function Output({
               {ltWarning && (
                 <div className="mt-3 p-3 bg-amber-50/80 dark:bg-amber-900/20 border border-amber-200/60 dark:border-amber-800/40 rounded-xl">
                   <p className="text-xs text-amber-600 dark:text-amber-400">{ltWarning}</p>
+                </div>
+              )}
+
+              {hasChanges && (
+                <div className="mt-5 animate-slide-up">
+                  <h3 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">
+                    Modifications
+                  </h3>
+                  <div
+                    className="bg-surface-50 dark:bg-gray-800/50 p-4 rounded-2xl border
+                      border-gray-200/60 dark:border-gray-700/60 shadow-subtle
+                      text-[14px] leading-relaxed font-mono"
+                  >
+                    {diffChunks.map((chunk, i) => {
+                      if (chunk.type === "removed") {
+                        return (
+                          <del
+                            key={i}
+                            className="text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-950/40 px-0.5 rounded no-underline line-through"
+                          >
+                            {chunk.text}
+                          </del>
+                        );
+                      }
+                      if (chunk.type === "added") {
+                        return (
+                          <span
+                            key={i}
+                            className="text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-0.5 rounded"
+                          >
+                            {chunk.text}
+                          </span>
+                        );
+                      }
+                      return <span key={i} className="text-gray-500 dark:text-gray-400">{chunk.text}</span>;
+                    })}
+                  </div>
                 </div>
               )}
 
