@@ -180,13 +180,16 @@ const _server = Bun.serve({
         } as any);
 
         const encoder = new TextEncoder();
-        // Regex to incrementally extract partial texte_corrige value (no closing quote needed)
-        const reTexte = /"texte_corrige"\s*:\s*"((?:[^"\\]|\\.)*)/;
+        // Two regexes: partial (no closing quote) for streaming deltas,
+        // full (closing quote) to detect when texte_corrige is complete
+        const rePartial = /"texte_corrige"\s*:\s*"((?:[^"\\]|\\.)*)/;
+        const reFull    = /"texte_corrige"\s*:\s*"((?:[^"\\]|\\.)*)"/;
 
         const readable = new ReadableStream({
           async start(controller) {
             let fullContent = "";
             let lastExtractedLen = 0;
+            let textDoneSent = false;
 
             try {
               for await (const chunk of stream) {
@@ -194,20 +197,37 @@ const _server = Bun.serve({
                 if (!delta) continue;
                 fullContent += delta;
 
-                // Try to stream the texte_corrige value progressively
-                const match = reTexte.exec(fullContent);
-                if (match) {
-                  const extracted = match[1].replace(/\\n/g, "\n").replace(/\\"/g, '"').replace(/\\\\/g, "\\");
-                  if (extracted.length > lastExtractedLen) {
-                    const newChars = extracted.slice(lastExtractedLen);
+                if (!textDoneSent) {
+                  const fullMatch = reFull.exec(fullContent);
+                  if (fullMatch) {
+                    // texte_corrige complete — flush remaining delta then send text_done
+                    const extracted = fullMatch[1].replace(/\\n/g, "\n").replace(/\\"/g, '"').replace(/\\\\/g, "\\");
+                    if (extracted.length > lastExtractedLen) {
+                      const newChars = extracted.slice(lastExtractedLen);
+                      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta: newChars })}\n\n`));
+                    }
+                    const textDuration = Date.now() - startTime;
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text_done: true, text: extracted, duration: textDuration })}\n\n`));
+                    textDoneSent = true;
                     lastExtractedLen = extracted.length;
-                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta: newChars })}\n\n`));
+                  } else {
+                    // Still streaming texte_corrige — emit partial delta
+                    const partialMatch = rePartial.exec(fullContent);
+                    if (partialMatch) {
+                      const extracted = partialMatch[1].replace(/\\n/g, "\n").replace(/\\"/g, '"').replace(/\\\\/g, "\\");
+                      if (extracted.length > lastExtractedLen) {
+                        const newChars = extracted.slice(lastExtractedLen);
+                        lastExtractedLen = extracted.length;
+                        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta: newChars })}\n\n`));
+                      }
+                    }
                   }
                 }
+                // After text_done: silently accumulate remaining JSON for corrections
               }
 
               // Parse complete JSON for corrections
-              const duration = Date.now() - startTime;
+              const totalDuration = Date.now() - startTime;
               let outputText = "";
               let corrections: unknown[] = [];
               try {
@@ -218,7 +238,7 @@ const _server = Bun.serve({
                 outputText = fullContent;
               }
 
-              console.log(`[LLM] Stream terminé en ${duration}ms`);
+              console.log(`[LLM] Stream terminé en ${totalDuration}ms`);
               span.setAttributes({
                 "output.text": outputText.slice(0, 2000),
                 "output.value": fullContent.slice(0, 2000),
@@ -227,7 +247,7 @@ const _server = Bun.serve({
               span.setStatus({ code: SpanStatusCode.OK });
               span.end();
 
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true, text: outputText, corrections })}\n\n`));
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true, corrections })}\n\n`));
             } catch (err) {
               span.setStatus({ code: SpanStatusCode.ERROR, message: String(err) });
               span.end();

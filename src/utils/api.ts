@@ -136,11 +136,16 @@ function parseCorrections(raw: unknown[]): CorrectionEntry[] {
   });
 }
 
+export interface StreamCallbacks {
+  onDelta?: (partial: string) => void;
+  onTextDone?: (text: string, duration: number) => void;
+}
+
 export async function correctText(
   text: string,
   settings: CorrectionSettings,
-  onDelta?: (partial: string) => void,
-): Promise<CorrectionResult> {
+  callbacks?: StreamCallbacks,
+): Promise<CorrectionEntry[]> {
   const systemPrompt = buildSystemPrompt(settings);
   const userPrompt = sanitizeInput(text);
 
@@ -195,15 +200,14 @@ export async function correctText(
 
         if (payload.error) throw new Error(payload.error);
 
-        if (payload.delta && onDelta) {
-          onDelta(payload.delta);
+        if (payload.delta) callbacks?.onDelta?.(payload.delta);
+
+        if (payload.text_done) {
+          callbacks?.onTextDone?.(payload.text ?? "", payload.duration ?? 0);
         }
 
         if (payload.done) {
-          return {
-            text: payload.text ?? "",
-            corrections: parseCorrections(Array.isArray(payload.corrections) ? payload.corrections : []),
-          };
+          return parseCorrections(Array.isArray(payload.corrections) ? payload.corrections : []);
         }
       }
     }

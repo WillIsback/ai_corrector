@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { checkLanguageTool } from "../services/languagetool";
 import type { CorrectionSettings, CorrectionStats } from "../types";
-import { type CorrectionEntry, correctText } from "../utils/api";
+import { type CorrectionEntry, correctText, type StreamCallbacks } from "../utils/api";
 
 export function useCorrector() {
   const [textContent, setTextContent] = useState("");
@@ -101,7 +101,6 @@ export function useCorrector() {
       ltPostCorrections: 0,
     });
 
-    const startTime = performance.now();
     let currentText = textContent;
 
     const controller = new AbortController();
@@ -122,7 +121,7 @@ export function useCorrector() {
         }
       }
 
-      // LLM inference — batch deltas per animation frame to avoid per-token re-renders
+      // LLM inference — streaming avec séparation texte / corrections
       streamBufRef.current = "";
       const flushStream = () => {
         if (streamBufRef.current) {
@@ -133,30 +132,42 @@ export function useCorrector() {
         rafRef.current = null;
       };
 
-      const result = await correctText(currentText, settings, (delta) => {
-        streamBufRef.current += delta;
-        if (!rafRef.current) {
-          rafRef.current = requestAnimationFrame(flushStream);
-        }
-      });
+      let finalText = "";
 
-      // Cancel any pending RAF and flush remainder
-      if (rafRef.current) {
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
-      }
+      const callbacks: StreamCallbacks = {
+        onDelta: (delta) => {
+          streamBufRef.current += delta;
+          if (!rafRef.current) {
+            rafRef.current = requestAnimationFrame(flushStream);
+          }
+        },
+        onTextDone: (text, duration) => {
+          // Flush remaining buffer immediately
+          if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+          if (streamBufRef.current) { streamBufRef.current = ""; }
+          finalText = text;
+          // Update text + stats immediately — corrections come later via done event
+          setOutputText(text);
+          setStats((prev) => ({ ...prev, processingTime: duration }));
+        },
+      };
 
-      if (!result.text || result.text.trim().length === 0) {
+      const corrections = await correctText(currentText, settings, callbacks);
+
+      // Cancel any leftover RAF
+      if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+
+      if (!finalText || finalText.trim().length === 0) {
         throw new Error("LLM returned empty response");
       }
 
-      // Post-fire LT (optional)
-      let finalText = result.text;
+      // Post-fire LT (optional) — updates text if needed
       if (settings.ltEnabled && settings.ltPostFire) {
         try {
           const postResult = await checkLanguageTool(finalText);
           if (postResult.matchCount > 0 && postResult.correctedText !== finalText) {
             finalText = postResult.correctedText;
+            setOutputText(finalText);
             setStats((prev) => ({ ...prev, ltPostCorrections: postResult.matchCount }));
           }
         } catch (e) {
@@ -164,12 +175,10 @@ export function useCorrector() {
         }
       }
 
-      setOutputText(finalText);
-      setCorrections(result.corrections);
+      setCorrections(corrections);
       setStats((prev) => ({
         ...prev,
-        processingTime: Math.round(performance.now() - startTime),
-        modificationCount: result.corrections.length,
+        modificationCount: corrections.length,
       }));
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") {
