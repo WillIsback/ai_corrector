@@ -1,6 +1,8 @@
+import type { CorrectionEntry } from "../utils/api";
+
 interface Props {
   outputText: string;
-  corrections: string[];
+  corrections: CorrectionEntry[];
   stats: {
     processingTime: number;
     modificationCount: number;
@@ -175,22 +177,16 @@ export function Output({
                       border-gray-200/60 dark:border-gray-700/60 shadow-subtle divide-y
                       divide-gray-100 dark:divide-gray-700/60 overflow-hidden"
                   >
-                    {corrections.map((correction, i) => {
-                      const arrowIdx = correction.indexOf(" -> ");
-                      const before = arrowIdx >= 0 ? correction.slice(0, arrowIdx) : correction;
-                      const after = arrowIdx >= 0 ? correction.slice(arrowIdx + 4) : "";
-                      return (
-                        <div key={i} className="flex items-center gap-2 px-4 py-2.5 text-[13px]">
-                          <span className="text-red-500 dark:text-red-400 line-through font-mono">{before}</span>
-                          {after && (
-                            <>
-                              <span className="text-gray-400 shrink-0">→</span>
-                              <span className="text-emerald-700 dark:text-emerald-400 font-mono">{after}</span>
-                            </>
-                          )}
-                        </div>
-                      );
-                    })}
+                    {corrections.map((c, i) => (
+                      <div key={i} className="flex items-center gap-2 px-4 py-2.5 text-[13px]">
+                        <span className="text-red-500 dark:text-red-400 line-through font-mono shrink-0">{c.avant}</span>
+                        <span className="text-gray-400 shrink-0">→</span>
+                        <span className="text-emerald-700 dark:text-emerald-400 font-mono shrink-0">{c.apres}</span>
+                        {c.regle && (
+                          <span className="ml-auto text-[11px] text-gray-400 dark:text-gray-500 italic truncate">{c.regle}</span>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}

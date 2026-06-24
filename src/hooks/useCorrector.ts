@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { checkLanguageTool } from "../services/languagetool";
 import type { CorrectionSettings, CorrectionStats } from "../types";
-import { correctText } from "../utils/api";
+import { type CorrectionEntry, correctText } from "../utils/api";
 
 export function useCorrector() {
   const [textContent, setTextContent] = useState("");
   const [outputText, setOutputText] = useState("");
-  const [corrections, setCorrections] = useState<string[]>([]);
+  const [corrections, setCorrections] = useState<CorrectionEntry[]>([]);
   const [settings, setSettings] = useState<CorrectionSettings>({
     mode: "formel",
     fixGrammar: true,

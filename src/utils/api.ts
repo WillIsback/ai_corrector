@@ -114,9 +114,15 @@ export interface LLMResponse {
   }>;
 }
 
+export interface CorrectionEntry {
+  avant: string;
+  apres: string;
+  regle: string;
+}
+
 export interface CorrectionResult {
   text: string;
-  corrections: string[];
+  corrections: CorrectionEntry[];
 }
 
 export async function correctText(text: string, settings: CorrectionSettings): Promise<CorrectionResult> {
@@ -167,9 +173,24 @@ export async function correctText(text: string, settings: CorrectionSettings): P
       const raw = data.choices[0].message.content.trim();
       try {
         const parsed = JSON.parse(raw);
+        const rawCorrections = Array.isArray(parsed.corrections) ? parsed.corrections : [];
+        const corrections: CorrectionEntry[] = rawCorrections.map((c: unknown) => {
+          if (typeof c === "object" && c !== null) {
+            const entry = c as Record<string, unknown>;
+            return {
+              avant: String(entry.avant ?? ""),
+              apres: String(entry.apres ?? ""),
+              regle: String(entry.regle ?? ""),
+            };
+          }
+          // Fallback: ancienne forme "avant -> apres"
+          const str = String(c);
+          const idx = str.indexOf(" -> ");
+          return { avant: idx >= 0 ? str.slice(0, idx) : str, apres: idx >= 0 ? str.slice(idx + 4) : "", regle: "" };
+        });
         return {
           text: parsed.texte_corrige ?? parsed.corrected_text ?? raw,
-          corrections: Array.isArray(parsed.corrections) ? parsed.corrections : [],
+          corrections,
         };
       } catch {
         return { text: raw, corrections: [] };
@@ -200,18 +221,25 @@ function buildSystemPrompt(settings: CorrectionSettings): string {
     technical: "Texte technique, clarte et precision",
   };
 
-  const activeCorrections = Object.entries(settings)
-    .filter(([, value]) => value === true)
-    .map(([key]) => key)
+  const correctionLabels: Partial<Record<keyof CorrectionSettings, string>> = {
+    fixGrammar: "grammaire",
+    fixSpelling: "orthographe",
+    fixSyntax: "syntaxe",
+    fixStyle: "style",
+  };
+
+  const activeCorrections = (Object.entries(correctionLabels) as [keyof CorrectionSettings, string][])
+    .filter(([key]) => settings[key] === true)
+    .map(([, label]) => label)
     .join(", ");
 
   return (
-    "Tu es un correcteur editorial expert en francais. Corrige UNIQUEMENT le texte fourni. " +
-    "Sois precis et ne change que ce qui necessite une correction. " +
-    "Mode: " + modeDescriptions[settings.mode] + " (" + (activeCorrections || "toutes") + "). " +
-    "Reponds UNIQUEMENT avec un objet JSON valide, sans markdown, sans texte avant ou apres, avec exactement ces deux champs:\n" +
-    '{"texte_corrige": "le texte corrige complet", "corrections": ["texte original -> texte corrige", ...]}\n' +
-    "Dans corrections, liste chaque modification sous la forme \"avant -> apres\". " +
+    "Tu es un correcteur editorial expert en francais. " +
+    "Mode: " + modeDescriptions[settings.mode] + ". " +
+    "Corrections actives: " + (activeCorrections || "toutes") + ". " +
+    "Corrige UNIQUEMENT ce qui necessite une correction selon ces criteres. Ne change pas le sens ni le style au-dela du mode demande. " +
+    "Reponds UNIQUEMENT avec un objet JSON valide, sans markdown, sans texte avant ou apres:\n" +
+    '{"texte_corrige": "le texte corrige complet", "corrections": [{"avant": "expression originale", "apres": "expression corrigee", "regle": "nom court de la regle ex: accord sujet-verbe"}, ...]}\n' +
     "Si aucune correction n'est necessaire, retourne corrections vide []."
   );
 }
