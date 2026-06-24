@@ -197,13 +197,11 @@ export function Output({
                         divide-gray-100 dark:divide-gray-700/60 overflow-hidden"
                     >
                       {corrections.map((c, i) => (
-                        <div key={i} className="flex items-center gap-2 px-4 py-2.5 text-[13px]">
-                          <span className="text-red-500 dark:text-red-400 line-through font-mono shrink-0">{c.avant}</span>
+                        <div key={i} className="grid grid-cols-[1fr_auto_1fr_1fr] items-center gap-2 px-4 py-2.5 text-[13px] min-w-0">
+                          <span className="text-red-500 dark:text-red-400 line-through font-mono truncate" title={c.avant}>{c.avant}</span>
                           <span className="text-gray-400 shrink-0">→</span>
-                          <span className="text-emerald-700 dark:text-emerald-400 font-mono shrink-0">{c.apres}</span>
-                          {c.regle && (
-                            <span className="ml-auto text-[11px] text-gray-400 dark:text-gray-500 italic truncate">{c.regle}</span>
-                          )}
+                          <span className="text-emerald-700 dark:text-emerald-400 font-mono truncate" title={c.apres}>{c.apres}</span>
+                          <span className="text-[11px] text-gray-400 dark:text-gray-500 italic truncate text-right" title={c.regle}>{c.regle}</span>
                         </div>
                       ))}
                     </div>
