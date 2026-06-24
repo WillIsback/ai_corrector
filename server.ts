@@ -180,15 +180,12 @@ const _server = Bun.serve({
         } as any);
 
         const encoder = new TextEncoder();
-        // Two regexes: partial (no closing quote) for streaming deltas,
-        // full (closing quote) to detect when texte_corrige is complete
-        const rePartial = /"texte_corrige"\s*:\s*"((?:[^"\\]|\\.)*)/;
-        const reFull    = /"texte_corrige"\s*:\s*"((?:[^"\\]|\\.)*)"/;
+        // Regex to detect when texte_corrige is complete (closing quote present)
+        const reFull = /"texte_corrige"\s*:\s*"((?:[^"\\]|\\.)*)"/;
 
         const readable = new ReadableStream({
           async start(controller) {
             let fullContent = "";
-            let lastExtractedLen = 0;
             let textDoneSent = false;
 
             try {
@@ -200,27 +197,10 @@ const _server = Bun.serve({
                 if (!textDoneSent) {
                   const fullMatch = reFull.exec(fullContent);
                   if (fullMatch) {
-                    // texte_corrige complete — flush remaining delta then send text_done
                     const extracted = fullMatch[1].replace(/\\n/g, "\n").replace(/\\"/g, '"').replace(/\\\\/g, "\\");
-                    if (extracted.length > lastExtractedLen) {
-                      const newChars = extracted.slice(lastExtractedLen);
-                      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta: newChars })}\n\n`));
-                    }
                     const textDuration = Date.now() - startTime;
                     controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text_done: true, text: extracted, duration: textDuration })}\n\n`));
                     textDoneSent = true;
-                    lastExtractedLen = extracted.length;
-                  } else {
-                    // Still streaming texte_corrige — emit partial delta
-                    const partialMatch = rePartial.exec(fullContent);
-                    if (partialMatch) {
-                      const extracted = partialMatch[1].replace(/\\n/g, "\n").replace(/\\"/g, '"').replace(/\\\\/g, "\\");
-                      if (extracted.length > lastExtractedLen) {
-                        const newChars = extracted.slice(lastExtractedLen);
-                        lastExtractedLen = extracted.length;
-                        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta: newChars })}\n\n`));
-                      }
-                    }
                   }
                 }
                 // After text_done: silently accumulate remaining JSON for corrections

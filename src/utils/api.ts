@@ -137,7 +137,6 @@ function parseCorrections(raw: unknown[]): CorrectionEntry[] {
 }
 
 export interface StreamCallbacks {
-  onDelta?: (partial: string) => void;
   onTextDone?: (text: string, duration: number) => void;
 }
 
@@ -199,8 +198,6 @@ export async function correctText(
         const payload = JSON.parse(line.slice(6));
 
         if (payload.error) throw new Error(payload.error);
-
-        if (payload.delta) callbacks?.onDelta?.(payload.delta);
 
         if (payload.text_done) {
           callbacks?.onTextDone?.(payload.text ?? "", payload.duration ?? 0);

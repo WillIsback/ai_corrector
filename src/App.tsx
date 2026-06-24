@@ -18,6 +18,7 @@ function App() {
     settings,
     setSettings,
     isLoading,
+    isLoadingCorrections,
     error,
     stats,
     ltWarning,
@@ -74,6 +75,7 @@ function App() {
           onCopy={handleCopySuccess}
           onReset={handleReset}
           isLoading={isLoading}
+          isLoadingCorrections={isLoadingCorrections}
           ltWarning={ltWarning}
         />
       </div>

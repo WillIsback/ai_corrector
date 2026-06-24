@@ -13,6 +13,7 @@ interface Props {
   onCopy: (text: string) => void;
   onReset: () => void;
   isLoading: boolean;
+  isLoadingCorrections?: boolean;
   ltWarning?: string | null;
 }
 
@@ -23,6 +24,7 @@ export function Output({
   onCopy,
   onReset,
   isLoading,
+  isLoadingCorrections,
   ltWarning,
 }: Props) {
   const [correctionsOpen, setCorrectionsOpen] = useState(false);
@@ -69,6 +71,16 @@ export function Output({
               </div>
             )}
           </div>
+
+          {isLoadingCorrections && !outputText && (
+            <div className="mt-5 flex items-center gap-3 text-sm text-gray-400 dark:text-gray-500">
+              <svg className="w-4 h-4 animate-spin text-brand-500" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+              </svg>
+              Correction en cours…
+            </div>
+          )}
 
           {outputText && (
             <div className="animate-slide-up">
@@ -166,6 +178,16 @@ export function Output({
               {ltWarning && (
                 <div className="mt-3 p-3 bg-amber-50/80 dark:bg-amber-900/20 border border-amber-200/60 dark:border-amber-800/40 rounded-xl">
                   <p className="text-xs text-amber-600 dark:text-amber-400">{ltWarning}</p>
+                </div>
+              )}
+
+              {isLoadingCorrections && (
+                <div className="mt-5 flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500">
+                  <svg className="w-3.5 h-3.5 animate-spin text-brand-500" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                  </svg>
+                  <span className="uppercase tracking-wider font-semibold">Analyse des corrections…</span>
                 </div>
               )}
 
