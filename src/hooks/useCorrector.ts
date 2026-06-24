@@ -1,23 +1,25 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { checkLanguageTool } from "../services/languagetool";
 import type { CorrectionSettings, CorrectionStats } from "../types";
-import { type CorrectionEntry, correctText, type StreamCallbacks } from "../utils/api";
+import { type CorrectionEntry, correctText } from "../utils/api";
 
 export function useCorrector() {
   const [textContent, setTextContent] = useState("");
   const [outputText, setOutputText] = useState("");
   const [corrections, setCorrections] = useState<CorrectionEntry[]>([]);
+  const [isLoadingText, setIsLoadingText] = useState(false);
+  const [isLoadingCorrections, setIsLoadingCorrections] = useState(false);
   const [settings, setSettings] = useState<CorrectionSettings>({
     mode: "formel",
     fixGrammar: true,
     fixSpelling: true,
     fixSyntax: true,
     fixStyle: true,
+    showCorrections: true,
     ltEnabled: true,
     ltPreFire: true,
     ltPostFire: false,
   });
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<CorrectionStats>({
     processingTime: 0,
@@ -28,86 +30,54 @@ export function useCorrector() {
   const [ltWarning, setLtWarning] = useState<string | null>(null);
 
   const isRunningRef = useRef(false);
-  const [isRunning, setIsRunning] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const streamBufRef = useRef("");
-  const rafRef = useRef<number | null>(null);
 
   useEffect(() => {
     try {
       const savedSettings = localStorage.getItem("ai-corrector:settings");
       if (savedSettings) {
-        setSettings(JSON.parse(savedSettings));
+        const parsed = JSON.parse(savedSettings);
+        // Merge with defaults to handle missing fields from older versions
+        setSettings((prev) => ({ ...prev, ...parsed }));
       }
-    } catch {
-      // Use defaults
-    }
+    } catch { /* use defaults */ }
   }, []);
 
   const localStorageTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-      if (localStorageTimeoutRef.current) {
-        clearTimeout(localStorageTimeoutRef.current);
-      }
+      abortControllerRef.current?.abort();
+      if (localStorageTimeoutRef.current) clearTimeout(localStorageTimeoutRef.current);
     };
   }, []);
 
   useEffect(() => {
-    if (localStorageTimeoutRef.current) {
-      clearTimeout(localStorageTimeoutRef.current);
-    }
-
+    if (localStorageTimeoutRef.current) clearTimeout(localStorageTimeoutRef.current);
     localStorageTimeoutRef.current = setTimeout(() => {
-      try {
-        localStorage.setItem("ai-corrector:settings", JSON.stringify(settings));
-      } catch {
-        // Ignore storage errors
-      }
+      try { localStorage.setItem("ai-corrector:settings", JSON.stringify(settings)); } catch { /* ignore */ }
     }, 500);
-
-    return () => {
-      if (localStorageTimeoutRef.current) {
-        clearTimeout(localStorageTimeoutRef.current);
-      }
-    };
+    return () => { if (localStorageTimeoutRef.current) clearTimeout(localStorageTimeoutRef.current); };
   }, [settings]);
 
   const handleCorrect = useCallback(async () => {
-    if (isRunningRef.current) {
-      return;
-    }
-
-    if (!textContent.trim()) {
-      setError("Veuillez entrer du texte");
-      return;
-    }
+    if (isRunningRef.current) return;
+    if (!textContent.trim()) { setError("Veuillez entrer du texte"); return; }
 
     isRunningRef.current = true;
-    setIsRunning(true);
-    setIsLoading(true);
+    setIsLoadingText(true);
+    setIsLoadingCorrections(false);
     setError(null);
     setOutputText("");
     setCorrections([]);
     setLtWarning(null);
-    setStats({
-      processingTime: 0,
-      modificationCount: 0,
-      ltPreCorrections: 0,
-      ltPostCorrections: 0,
-    });
+    setStats({ processingTime: 0, modificationCount: 0, ltPreCorrections: 0, ltPostCorrections: 0 });
 
     let currentText = textContent;
-
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
+    abortControllerRef.current = new AbortController();
 
     try {
-      // Pre-fire LT on original text
+      // Pre-fire LT
       if (settings.ltEnabled && settings.ltPreFire) {
         try {
           const preResult = await checkLanguageTool(currentText, []);
@@ -121,47 +91,23 @@ export function useCorrector() {
         }
       }
 
-      // LLM inference — streaming avec séparation texte / corrections
-      streamBufRef.current = "";
-      const flushStream = () => {
-        if (streamBufRef.current) {
-          const chunk = streamBufRef.current;
-          streamBufRef.current = "";
-          setOutputText((prev) => prev + chunk);
-        }
-        rafRef.current = null;
-      };
-
       let finalText = "";
 
-      const callbacks: StreamCallbacks = {
-        onDelta: (delta) => {
-          streamBufRef.current += delta;
-          if (!rafRef.current) {
-            rafRef.current = requestAnimationFrame(flushStream);
-          }
-        },
+      const corrections = await correctText(currentText, settings, {
         onTextDone: (text, duration) => {
-          // Flush remaining buffer immediately
-          if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
-          if (streamBufRef.current) { streamBufRef.current = ""; }
           finalText = text;
-          // Update text + stats immediately — corrections come later via done event
           setOutputText(text);
+          setIsLoadingText(false);
+          if (settings.showCorrections) setIsLoadingCorrections(true);
           setStats((prev) => ({ ...prev, processingTime: duration }));
         },
-      };
-
-      const corrections = await correctText(currentText, settings, callbacks);
-
-      // Cancel any leftover RAF
-      if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+      });
 
       if (!finalText || finalText.trim().length === 0) {
         throw new Error("LLM returned empty response");
       }
 
-      // Post-fire LT (optional) — updates text if needed
+      // Post-fire LT
       if (settings.ltEnabled && settings.ltPostFire) {
         try {
           const postResult = await checkLanguageTool(finalText);
@@ -170,29 +116,19 @@ export function useCorrector() {
             setOutputText(finalText);
             setStats((prev) => ({ ...prev, ltPostCorrections: postResult.matchCount }));
           }
-        } catch (e) {
-          console.warn("Post-fire LT failed:", e);
-        }
+        } catch (e) { console.warn("Post-fire LT failed:", e); }
       }
 
       setCorrections(corrections);
-      setStats((prev) => ({
-        ...prev,
-        modificationCount: corrections.length,
-      }));
+      setIsLoadingCorrections(false);
+      setStats((prev) => ({ ...prev, modificationCount: corrections.length }));
     } catch (err) {
-      if (err instanceof Error && err.name === "AbortError") {
-        return;
-      }
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("Une erreur inconnue est survenue");
-      }
+      if (err instanceof Error && err.name === "AbortError") return;
+      setError(err instanceof Error ? err.message : "Une erreur inconnue est survenue");
     } finally {
       isRunningRef.current = false;
-      setIsRunning(false);
-      setIsLoading(false);
+      setIsLoadingText(false);
+      setIsLoadingCorrections(false);
       abortControllerRef.current = null;
     }
   }, [textContent, settings]);
@@ -201,12 +137,7 @@ export function useCorrector() {
     setTextContent("");
     setOutputText("");
     setCorrections([]);
-    setStats({
-      processingTime: 0,
-      modificationCount: 0,
-      ltPreCorrections: 0,
-      ltPostCorrections: 0,
-    });
+    setStats({ processingTime: 0, modificationCount: 0, ltPreCorrections: 0, ltPostCorrections: 0 });
     setError(null);
     setLtWarning(null);
   }, []);
@@ -218,8 +149,8 @@ export function useCorrector() {
     corrections,
     settings,
     setSettings,
-    isLoading,
-    isRunning,
+    isLoading: isLoadingText,
+    isLoadingCorrections,
     error,
     stats,
     ltWarning,

@@ -153,6 +153,44 @@ export function Sidebar({ settings, setSettings }: Props) {
               <span className="text-sm text-gray-700 dark:text-gray-300">{label}</span>
             </label>
           ))}
+
+          <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-800/60">
+            <label
+              className="flex items-center gap-2.5 px-3 py-2 rounded-xl cursor-pointer
+                hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+            >
+              <div className="relative">
+                <input
+                  type="checkbox"
+                  checked={settings.showCorrections}
+                  onChange={(e) => handleSettingChange("showCorrections", e.target.checked)}
+                  className="peer sr-only"
+                />
+                <div
+                  className="w-4 h-4 rounded-[5px] border-2 border-gray-300 dark:border-gray-600
+                    peer-checked:border-brand-500 peer-checked:bg-brand-500
+                    transition-all duration-150 flex items-center justify-center"
+                >
+                  <svg
+                    aria-hidden="true"
+                    className="w-2.5 h-2.5 text-white opacity-0 peer-checked:opacity-100 transition-opacity"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={3}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+              </div>
+              <div className="flex flex-col min-w-0">
+                <span className="text-sm text-gray-700 dark:text-gray-300">Détail des corrections</span>
+                <span className="text-[11px] text-gray-400 dark:text-gray-500">
+                  {settings.showCorrections ? "Ralentit l'inférence" : "Mode rapide"}
+                </span>
+              </div>
+            </label>
+          </div>
         </div>
       </div>
 

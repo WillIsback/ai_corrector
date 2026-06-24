@@ -6,6 +6,7 @@ export interface CorrectionSettings {
   fixSpelling: boolean;
   fixSyntax: boolean;
   fixStyle: boolean;
+  showCorrections: boolean;
   ltEnabled: boolean;
   ltPreFire: boolean;
   ltPostFire: boolean;
