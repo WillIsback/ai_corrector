@@ -180,8 +180,8 @@ const _server = Bun.serve({
         } as any);
 
         const encoder = new TextEncoder();
-        // Regex to incrementally extract texte_corrige value as JSON streams in
-        const reTexte = /"texte_corrige"\s*:\s*"((?:[^"\\]|\\.)*)"/;
+        // Regex to incrementally extract partial texte_corrige value (no closing quote needed)
+        const reTexte = /"texte_corrige"\s*:\s*"((?:[^"\\]|\\.)*)/;
 
         const readable = new ReadableStream({
           async start(controller) {

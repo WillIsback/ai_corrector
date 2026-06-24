@@ -95,7 +95,6 @@ export interface LLMRequest {
     content: string;
   }>;
   temperature: number;
-  response_format?: { type: "json_object" };
   correction_mode?: string;
 }
 
@@ -152,7 +151,6 @@ export async function correctText(
       { role: "user", content: userPrompt },
     ],
     temperature: 0.3,
-    response_format: { type: "json_object" },
     correction_mode: settings.mode,
   };
 
