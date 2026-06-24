@@ -137,9 +137,16 @@ export function Output({
                       Corrections
                     </span>
                   </div>
-                  <p className="text-xl font-semibold text-brand-600 dark:text-brand-400 tabular-nums">
-                    {stats.modificationCount}
-                  </p>
+                  {isLoadingCorrections ? (
+                    <svg className="w-5 h-5 mt-0.5 animate-spin text-brand-500" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                    </svg>
+                  ) : (
+                    <p className="text-xl font-semibold text-brand-600 dark:text-brand-400 tabular-nums">
+                      {stats.modificationCount}
+                    </p>
+                  )}
                 </div>
 
                 {stats.ltPreCorrections > 0 && (
