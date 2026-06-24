@@ -47,6 +47,7 @@ export interface LLMRequest {
     content: string;
   }>;
   temperature: number;
+  correction_mode?: string;
 }
 
 export interface LLMResponse {
@@ -77,6 +78,7 @@ export async function correctText(text: string, settings: CorrectionSettings): P
       { role: "user", content: userPrompt },
     ],
     temperature: 0.3,
+    correction_mode: settings.mode,
   };
 
   // Cancel any ongoing request before starting a new one
