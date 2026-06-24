@@ -28,3 +28,7 @@ tmp/
 temp/
 *.tmp
 .worktrees/
+
+# Python venvs
+.venv/
+evals/.venv/
