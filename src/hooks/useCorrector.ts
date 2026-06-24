@@ -30,6 +30,8 @@ export function useCorrector() {
   const isRunningRef = useRef(false);
   const [isRunning, setIsRunning] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const streamBufRef = useRef("");
+  const rafRef = useRef<number | null>(null);
 
   useEffect(() => {
     try {
@@ -120,10 +122,29 @@ export function useCorrector() {
         }
       }
 
-      // LLM inference — streams corrected text token by token, resolves with full result
+      // LLM inference — batch deltas per animation frame to avoid per-token re-renders
+      streamBufRef.current = "";
+      const flushStream = () => {
+        if (streamBufRef.current) {
+          const chunk = streamBufRef.current;
+          streamBufRef.current = "";
+          setOutputText((prev) => prev + chunk);
+        }
+        rafRef.current = null;
+      };
+
       const result = await correctText(currentText, settings, (delta) => {
-        setOutputText((prev) => prev + delta);
+        streamBufRef.current += delta;
+        if (!rafRef.current) {
+          rafRef.current = requestAnimationFrame(flushStream);
+        }
       });
+
+      // Cancel any pending RAF and flush remainder
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
 
       if (!result.text || result.text.trim().length === 0) {
         throw new Error("LLM returned empty response");
