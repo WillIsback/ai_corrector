@@ -1,23 +1,25 @@
+// Telemetry MUST be imported first — instruments OpenAI SDK before it loads
+import "./telemetry.ts";
+
 import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { OpenAI } from "openai";
 import { trace, SpanKind, SpanStatusCode } from "@opentelemetry/api";
+import OpenAI from "openai";
+
+const tracer = trace.getTracer("ai-corrector");
 
 const PORT = 25000;
 const DIST_DIR = join(import.meta.dir, "dist");
 const VALID_WORDS_PATH = join(import.meta.dir, "public", "data", "valid-words.json");
 
-const LT_TARGET = "http://127.0.0.1:3002";
-const LLM_TARGET = "http://127.0.0.1:30000";
+const LT_TARGET = process.env.LT_TARGET ?? "http://127.0.0.1:3002";
+const LLM_TARGET = process.env.LLM_TARGET ?? "http://127.0.0.1:30000";
+const LLM_API_KEY = process.env.LLM_API_KEY ?? "";
 
-// Initialize OpenAI SDK pointing to vLLM
 const llmClient = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || "sk-dummy-key",
-  baseURL: LLM_TARGET,
+  baseURL: `${LLM_TARGET}/v1`,
+  apiKey: LLM_API_KEY || "unused",
 });
-
-// Initialize OTel tracer
-const tracer = trace.getTracer("ai-corrector-server");
 
 function getCorsHeaders(req: Request): Headers {
   const origin = req.headers.get("Origin") ?? "";

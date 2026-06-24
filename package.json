@@ -15,11 +15,8 @@
     "serve": "bun run server.ts"
   },
   "dependencies": {
-    "@opentelemetry/api": "^1.9.1",
-    "@opentelemetry/sdk-trace-node": "^2.8.0",
     "compromise": "^14.15.0",
     "diff-match-patch": "^1.0.5",
-    "openai": "^4.47.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
