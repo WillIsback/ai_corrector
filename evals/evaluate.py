@@ -65,7 +65,7 @@ def build_eval_dataframe(spans: pd.DataFrame, eval_name: str) -> pd.DataFrame:
     if eval_name == "style_adherence":
         return pd.DataFrame(
             {
-                "output_text": spans["attributes.output.text"].values,
+                "output_text": spans["attributes.output.text"].fillna("").values,
                 "correction_mode": spans["attributes.correction.mode"].fillna("unknown").values,
             },
             index=spans["span_id"].values,
