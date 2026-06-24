@@ -11,29 +11,11 @@ export interface CorrectionSettings {
   ltPostFire: boolean;
 }
 
-export type CorrectionSource = "llm" | "lt_pre" | "lt_post";
-
-export type DiffChunkType = "unchanged" | "added" | "removed";
-
-export interface DiffChunk {
-  type: DiffChunkType;
-  text: string;
-  source?: CorrectionSource;
-  ltMatchId?: string;
-}
-
 export interface CorrectionStats {
   processingTime: number;
   modificationCount: number;
   ltPreCorrections: number;
   ltPostCorrections: number;
-}
-
-export interface CorrectionResult {
-  originalText: string;
-  correctedText: string;
-  diff: DiffChunk[];
-  stats: CorrectionStats;
 }
 
 export type ToastType = "success" | "error" | "warning";
@@ -56,11 +38,4 @@ export interface LTMatch {
 
 export interface LTResponse {
   matches: LTMatch[];
-}
-
-// Entity types
-export interface SuspectWord {
-  originalText: string; // "Noota"
-  offset: number; // position in the corrected output text
-  length: number; // length of the word
 }

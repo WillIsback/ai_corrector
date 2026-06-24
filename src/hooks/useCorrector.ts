@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { detectEntities, getEntityOffsets, markEntitiesInOutput } from "../services/entityDetector";
 import { checkLanguageTool } from "../services/languagetool";
-import { addValidWord, loadValidWords } from "../services/validWords";
-import type { CorrectionSettings, CorrectionStats, SuspectWord } from "../types";
+import type { CorrectionSettings, CorrectionStats } from "../types";
 import { correctText } from "../utils/api";
 
 export function useCorrector() {
@@ -28,7 +26,6 @@ export function useCorrector() {
     ltPostCorrections: 0,
   });
   const [ltWarning, setLtWarning] = useState<string | null>(null);
-  const [suspects, setSuspects] = useState<SuspectWord[]>([]);
 
   const isRunningRef = useRef(false);
   const [isRunning, setIsRunning] = useState(false);
@@ -95,7 +92,6 @@ export function useCorrector() {
     setOutputText("");
     setCorrections([]);
     setLtWarning(null);
-    setSuspects([]);
     setStats({
       processingTime: 0,
       modificationCount: 0,
@@ -110,15 +106,10 @@ export function useCorrector() {
     abortControllerRef.current = controller;
 
     try {
-      // Detect ALL entities in input (to protect from LT)
-      const validWords = await loadValidWords();
-      const detectedEntities = detectEntities(textContent);
-      const entityRanges = getEntityOffsets(textContent, detectedEntities);
-
-      // Pre-fire LT on original text (skip corrections on entity words)
+      // Pre-fire LT on original text
       if (settings.ltEnabled && settings.ltPreFire) {
         try {
-          const preResult = await checkLanguageTool(currentText, entityRanges);
+          const preResult = await checkLanguageTool(currentText, []);
           if (preResult.matchCount > 0 && preResult.correctedText !== currentText) {
             currentText = preResult.correctedText;
             setStats((prev) => ({ ...prev, ltPreCorrections: preResult.matchCount }));
@@ -136,7 +127,7 @@ export function useCorrector() {
         throw new Error("LLM returned empty response");
       }
 
-      // Post-fire LT (optional) — operates on plain text
+      // Post-fire LT (optional)
       let finalText = result.text;
       if (settings.ltEnabled && settings.ltPostFire) {
         try {
@@ -150,18 +141,12 @@ export function useCorrector() {
         }
       }
 
-      // Mark detected entities in the final output (skip already validated words)
-      const outputSuspects = markEntitiesInOutput(finalText, detectedEntities, validWords);
-
-      const modificationCount = result.corrections.length;
-
-      setSuspects(outputSuspects);
       setOutputText(finalText);
       setCorrections(result.corrections);
       setStats((prev) => ({
         ...prev,
         processingTime: Math.round(performance.now() - startTime),
-        modificationCount,
+        modificationCount: result.corrections.length,
       }));
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") {
@@ -192,16 +177,6 @@ export function useCorrector() {
     });
     setError(null);
     setLtWarning(null);
-    setSuspects([]);
-  }, []);
-
-  const handleKeepWord = useCallback(async (word: string) => {
-    await addValidWord(word);
-    setSuspects((prev) => prev.filter((s) => s.originalText !== word));
-  }, []);
-
-  const handleRejectWord = useCallback((word: string) => {
-    setSuspects((prev) => prev.filter((s) => s.originalText !== word));
   }, []);
 
   return {
@@ -216,10 +191,7 @@ export function useCorrector() {
     error,
     stats,
     ltWarning,
-    suspects,
     handleCorrect,
     handleReset,
-    handleKeepWord,
-    handleRejectWord,
   };
 }

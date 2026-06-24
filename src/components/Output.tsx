@@ -1,13 +1,6 @@
-import type React from "react";
-import type { SuspectWord } from "../types";
-import { SuspectWord as SuspectBadge } from "./SuspectBadge";
-
 interface Props {
   outputText: string;
   corrections: string[];
-  suspects: SuspectWord[];
-  onKeepWord: (word: string) => void;
-  onRejectWord: (word: string) => void;
   stats: {
     processingTime: number;
     modificationCount: number;
@@ -20,51 +13,9 @@ interface Props {
   ltWarning?: string | null;
 }
 
-function renderTextWithSuspects(
-  text: string,
-  suspects: SuspectWord[],
-  onKeep: (word: string) => void,
-  onReject: (word: string) => void,
-): React.ReactNode[] {
-  if (suspects.length === 0) {
-    return [<span key="text">{text}</span>];
-  }
-
-  const parts: React.ReactNode[] = [];
-  let lastIndex = 0;
-
-  const sorted = [...suspects].sort((a, b) => a.offset - b.offset);
-
-  for (const suspect of sorted) {
-    if (suspect.offset > lastIndex) {
-      parts.push(<span key={`text-${lastIndex}`}>{text.slice(lastIndex, suspect.offset)}</span>);
-    }
-
-    parts.push(
-      <SuspectBadge
-        key={`suspect-${suspect.offset}`}
-        word={suspect.originalText}
-        onKeep={() => onKeep(suspect.originalText)}
-        onReject={() => onReject(suspect.originalText)}
-      />,
-    );
-
-    lastIndex = suspect.offset + suspect.length;
-  }
-
-  if (lastIndex < text.length) {
-    parts.push(<span key={`text-${lastIndex}`}>{text.slice(lastIndex)}</span>);
-  }
-
-  return parts;
-}
-
 export function Output({
   outputText,
   corrections,
-  suspects,
-  onKeepWord,
-  onRejectWord,
   stats,
   onCopy,
   onReset,
@@ -90,7 +41,7 @@ export function Output({
           >
             {outputText ? (
               <p className="text-[15px] leading-relaxed text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
-                {renderTextWithSuspects(outputText, suspects, onKeepWord, onRejectWord)}
+                {outputText}
               </p>
             ) : (
               <div className="h-full flex flex-col items-center justify-center text-center py-12">
@@ -167,12 +118,11 @@ export function Output({
                       />
                     </svg>
                     <span className="text-[11px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">
-                      Différence
+                      Corrections
                     </span>
                   </div>
                   <p className="text-xl font-semibold text-brand-600 dark:text-brand-400 tabular-nums">
                     {stats.modificationCount}
-                    <span className="text-sm font-normal text-gray-400 ml-0.5">car.</span>
                   </p>
                 </div>
 
@@ -216,7 +166,7 @@ export function Output({
               )}
 
               {corrections.length > 0 && (
-                <div className="mt-5 animate-slide-up">
+                <div className="mt-5">
                   <h3 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">
                     Corrections ({corrections.length})
                   </h3>

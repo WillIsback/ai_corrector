@@ -21,11 +21,8 @@ function App() {
     error,
     stats,
     ltWarning,
-    suspects,
     handleCorrect,
     handleReset,
-    handleKeepWord,
-    handleRejectWord,
   } = useCorrector();
 
   const { isAvailable: ltAvailable } = useLanguageTool();
@@ -33,22 +30,16 @@ function App() {
   useEffect(() => { initModel(); }, []);
 
   const [theme, setTheme] = useState<"light" | "dark">("light");
-
   const [toast, setToast] = useState<Toast | null>(null);
 
   useEffect(() => {
     const root = window.document.documentElement;
-
     if (theme === "dark") {
       root.classList.add("dark");
     } else {
       root.classList.remove("dark");
     }
   }, [theme]);
-
-  const handleCloseToast = () => {
-    setToast(null);
-  };
 
   const handleCopySuccess = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -79,9 +70,6 @@ function App() {
         <Output
           outputText={outputText}
           corrections={corrections}
-          suspects={suspects}
-          onKeepWord={handleKeepWord}
-          onRejectWord={handleRejectWord}
           stats={stats}
           onCopy={handleCopySuccess}
           onReset={handleReset}
@@ -90,7 +78,7 @@ function App() {
         />
       </div>
 
-      {toast && <Toast toast={toast} onClose={handleCloseToast} />}
+      {toast && <Toast toast={toast} onClose={() => setToast(null)} />}
 
       {error && (
         <div className="bg-red-50/80 dark:bg-red-950/30 border-t border-red-200/60 dark:border-red-800/40 backdrop-blur-sm">
