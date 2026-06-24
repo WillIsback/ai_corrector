@@ -1,5 +1,7 @@
 import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { OpenAI } from "openai";
+import { trace, SpanKind, SpanStatusCode } from "@opentelemetry/api";
 
 const PORT = 25000;
 const DIST_DIR = join(import.meta.dir, "dist");
@@ -7,6 +9,15 @@ const VALID_WORDS_PATH = join(import.meta.dir, "public", "data", "valid-words.js
 
 const LT_TARGET = "http://127.0.0.1:3002";
 const LLM_TARGET = "http://127.0.0.1:30000";
+
+// Initialize OpenAI SDK pointing to vLLM
+const llmClient = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY || "sk-dummy-key",
+  baseURL: LLM_TARGET,
+});
+
+// Initialize OTel tracer
+const tracer = trace.getTracer("ai-corrector-server");
 
 function getCorsHeaders(req: Request): Headers {
   const origin = req.headers.get("Origin") ?? "";
@@ -129,7 +140,92 @@ const _server = Bun.serve({
       }
     }
 
-    // === API: LLM Proxy ===
+    // === API: LLM — Chat Completions (OpenAI SDK → OTEL instrumented) ===
+    if (path === "/corrector/v1/chat/completions" && req.method === "POST") {
+      console.log("[LLM] Chat completion via SDK");
+      const startTime = Date.now();
+
+      const span = tracer.startSpan("llm.chat", {
+        kind: SpanKind.CLIENT,
+      });
+
+      try {
+        const body = (await req.json()) as any;
+
+        // Extraire les métadonnées de correction (non transmises à vLLM)
+        const correctionMode: string = body.correction_mode ?? "unknown";
+        const { correction_mode: _mode, ...llmBody } = body;
+
+        // Extraire le texte d'entrée depuis le dernier message user
+        const messages: Array<{ role: string; content: string }> = llmBody.messages ?? [];
+        const userMessage = [...messages].reverse().find((m) => m.role === "user");
+        const inputText: string = userMessage?.content ?? "";
+
+        span.setAttributes({
+          "openinference.span.kind": "LLM",
+          "llm.model_name": llmBody.model ?? "unknown",
+          "input.value": JSON.stringify(messages),
+          "input.mime_type": "application/json",
+          "input.text": inputText.slice(0, 2000),
+          "correction.mode": correctionMode,
+        });
+
+        const completion = await llmClient.chat.completions.create({
+          ...llmBody,
+          // Enforce disable thinking mode — vLLM/Qwen3 specific
+          chat_template_kwargs: { enable_thinking: false },
+        } as any);
+
+        const duration = Date.now() - startTime;
+        console.log(
+          `[LLM] Réponse: ${completion.usage?.total_tokens ?? "?"} tokens en ${duration}ms`,
+        );
+
+        // Extraire le texte corrigé depuis la réponse JSON du LLM
+        let outputText = "";
+        try {
+          const rawContent = completion.choices?.[0]?.message?.content ?? "";
+          const parsed = JSON.parse(rawContent);
+          outputText = parsed.texte_corrige ?? parsed.corrected_text ?? rawContent;
+        } catch {
+          outputText = completion.choices?.[0]?.message?.content ?? "";
+        }
+
+        span.setAttributes({
+          "output.value": JSON.stringify(completion.choices),
+          "output.mime_type": "application/json",
+          "output.text": outputText.slice(0, 2000),
+          "llm.token_count.total": completion.usage?.total_tokens ?? 0,
+          "llm.token_count.prompt": completion.usage?.prompt_tokens ?? 0,
+          "llm.token_count.completion": completion.usage?.completion_tokens ?? 0,
+        });
+        span.setStatus({ code: SpanStatusCode.OK });
+        span.end();
+
+        const headers = getCorsHeaders(req);
+        return new Response(JSON.stringify(completion), { headers });
+      } catch (error) {
+        const duration = Date.now() - startTime;
+        console.error(
+          `[LLM] Erreur après ${duration}ms:`,
+          error instanceof Error ? error.message : error,
+        );
+        span.setStatus({
+          code: SpanStatusCode.ERROR,
+          message: error instanceof Error ? error.message : "Unknown error",
+        });
+        span.end();
+        return new Response(
+          JSON.stringify({
+            error: "LLM unavailable",
+            details: error instanceof Error ? error.message : "Unknown error",
+          }),
+          { status: 502, headers: { "Content-Type": "application/json" } },
+        );
+      }
+    }
+
+    // === API: LLM Proxy (fallback for other LLM routes) ===
     if (path.startsWith("/corrector/v1/")) {
       const llmPath = path.replace("/corrector", "");
       const llmUrl = `${LLM_TARGET}${llmPath}${url.search}`;
