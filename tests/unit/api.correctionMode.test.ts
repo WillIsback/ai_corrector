@@ -11,7 +11,6 @@ const defaultSettings: CorrectionSettings = {
   ltEnabled: true,
   ltPreFire: true,
   ltPostFire: false,
-  model: "",
 };
 
 describe("correctText — correction_mode", () => {
@@ -56,7 +55,7 @@ describe("correctText — correction_mode", () => {
   it("envoie correction_mode pour chaque mode", async () => {
     for (const mode of ["formel", "semi-formel", "technique", "technical"] as const) {
       await correctText("Texte.", { ...defaultSettings, mode: mode as CorrectionSettings["mode"] });
-      const fetchCall = (fetch as ReturnType<typeof vi.fn>).mock.calls.at(-1);
+      const fetchCall = (fetch as ReturnType<typeof vi.fn>).mock.calls[(fetch as ReturnType<typeof vi.fn>).mock.calls.length - 1];
       const body = JSON.parse(fetchCall[1].body);
       expect(body.correction_mode).toBe(mode);
     }
