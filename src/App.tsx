@@ -7,6 +7,7 @@ import { Sidebar } from "./components/Sidebar";
 import { Toast } from "./components/Toast";
 import { useCorrector } from "./hooks/useCorrector";
 import { useLanguageTool } from "./hooks/useLanguageTool";
+import { initModel } from "./utils/api";
 
 function App() {
   const {
@@ -27,6 +28,8 @@ function App() {
   } = useCorrector();
 
   const { isAvailable: ltAvailable } = useLanguageTool();
+
+  useEffect(() => { initModel(); }, []);
 
   const [theme, setTheme] = useState<"light" | "dark">("light");
 

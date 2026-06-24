@@ -233,9 +233,13 @@ const _server = Bun.serve({
       const llmUrl = `${LLM_TARGET}${llmPath}${url.search}`;
 
       try {
+        // Override Authorization with the real LLM API key (frontend sends a placeholder)
+        const proxyHeaders = new Headers(req.headers);
+        if (LLM_API_KEY) proxyHeaders.set("Authorization", `Bearer ${LLM_API_KEY}`);
+
         const llmResponse = await fetch(llmUrl, {
           method: req.method,
-          headers: req.headers,
+          headers: proxyHeaders,
           body: req.method !== "GET" && req.method !== "HEAD" ? req.body : undefined,
           redirect: "follow",
         });

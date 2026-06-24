@@ -1,5 +1,8 @@
 import type React from "react";
+import { useState, useEffect } from "react";
 import type { CorrectionMode, CorrectionSettings } from "../types";
+import { ModelSelector } from "./ModelSelector";
+import { getCurrentModel, subscribeToModelChange } from "../utils/api";
 
 interface Props {
   settings: CorrectionSettings;
@@ -15,6 +18,11 @@ const modeLabels: Record<CorrectionMode, { label: string; icon: string }> = {
 
 export function Sidebar({ settings, setSettings }: Props) {
   const modeKeys = Object.keys(modeLabels) as CorrectionMode[];
+  const [currentModel, setCurrentModelState] = useState(getCurrentModel);
+
+  useEffect(() => {
+    return subscribeToModelChange(setCurrentModelState);
+  }, []);
 
   const handleModeChange = (newMode: CorrectionMode) => {
     setSettings({ ...settings, mode: newMode });
@@ -147,6 +155,11 @@ export function Sidebar({ settings, setSettings }: Props) {
           ))}
         </div>
       </div>
+
+      <ModelSelector
+        currentModel={currentModel}
+        onModelSelect={setCurrentModelState}
+      />
 
       <div className="pt-4 border-t border-gray-200/60 dark:border-gray-700/60">
         <h2 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">

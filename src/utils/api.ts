@@ -40,6 +40,54 @@ function sanitizeInput(text: string): string {
   return sanitized;
 }
 
+export interface ModelInfo {
+  id: string;
+  object: string;
+  created: number;
+  owned_by: string;
+}
+
+let _currentModel: string = import.meta.env.VITE_LLM_MODEL_NAME || "auto";
+const _modelListeners: Set<(model: string) => void> = new Set();
+
+export function getCurrentModel(): string {
+  return _currentModel;
+}
+
+export function setCurrentModel(model: string): void {
+  _currentModel = model;
+  for (const listener of _modelListeners) {
+    listener(model);
+  }
+}
+
+export function subscribeToModelChange(listener: (model: string) => void): () => void {
+  _modelListeners.add(listener);
+  return () => _modelListeners.delete(listener);
+}
+
+export async function fetchModels(): Promise<ModelInfo[]> {
+  const response = await fetch("/corrector/v1/models", {
+    headers: { Authorization: "Bearer no-key-needed" },
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch models: ${response.status}`);
+  }
+  const data = await response.json();
+  return (data.data ?? []) as ModelInfo[];
+}
+
+export async function initModel(): Promise<void> {
+  try {
+    const models = await fetchModels();
+    if (models.length > 0 && _currentModel === "auto") {
+      setCurrentModel(models[0].id);
+    }
+  } catch {
+    // vLLM may not be available yet — keep default
+  }
+}
+
 export interface LLMRequest {
   model: string;
   messages: Array<{
@@ -69,10 +117,8 @@ export async function correctText(text: string, settings: CorrectionSettings): P
   const systemPrompt = buildSystemPrompt(settings);
   const userPrompt = sanitizeInput(text);
 
-  const model = import.meta.env.VITE_LLM_MODEL_NAME || "auto";
-
   const request: LLMRequest = {
-    model: model,
+    model: _currentModel,
     messages: [
       { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt },
