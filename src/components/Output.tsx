@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { CorrectionEntry } from "../utils/api";
 
 interface Props {
@@ -24,6 +25,7 @@ export function Output({
   isLoading,
   ltWarning,
 }: Props) {
+  const [correctionsOpen, setCorrectionsOpen] = useState(false);
   return (
     <div className="flex-1 flex flex-col min-w-0 border-l border-gray-200/50 dark:border-gray-700/50">
       <div className="flex-1 p-6 overflow-y-auto">
@@ -169,25 +171,43 @@ export function Output({
 
               {corrections.length > 0 && (
                 <div className="mt-5">
-                  <h3 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">
-                    Corrections ({corrections.length})
-                  </h3>
-                  <div
-                    className="bg-surface-50 dark:bg-gray-800/50 rounded-2xl border
-                      border-gray-200/60 dark:border-gray-700/60 shadow-subtle divide-y
-                      divide-gray-100 dark:divide-gray-700/60 overflow-hidden"
+                  <button
+                    type="button"
+                    onClick={() => setCorrectionsOpen((o) => !o)}
+                    className="flex items-center gap-2 w-full text-left group"
                   >
-                    {corrections.map((c, i) => (
-                      <div key={i} className="flex items-center gap-2 px-4 py-2.5 text-[13px]">
-                        <span className="text-red-500 dark:text-red-400 line-through font-mono shrink-0">{c.avant}</span>
-                        <span className="text-gray-400 shrink-0">→</span>
-                        <span className="text-emerald-700 dark:text-emerald-400 font-mono shrink-0">{c.apres}</span>
-                        {c.regle && (
-                          <span className="ml-auto text-[11px] text-gray-400 dark:text-gray-500 italic truncate">{c.regle}</span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
+                    <span className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                      Corrections ({corrections.length})
+                    </span>
+                    <svg
+                      aria-hidden="true"
+                      className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${correctionsOpen ? "rotate-180" : ""}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      strokeWidth={2}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  {correctionsOpen && (
+                    <div
+                      className="mt-2 bg-surface-50 dark:bg-gray-800/50 rounded-2xl border
+                        border-gray-200/60 dark:border-gray-700/60 shadow-subtle divide-y
+                        divide-gray-100 dark:divide-gray-700/60 overflow-hidden"
+                    >
+                      {corrections.map((c, i) => (
+                        <div key={i} className="flex items-center gap-2 px-4 py-2.5 text-[13px]">
+                          <span className="text-red-500 dark:text-red-400 line-through font-mono shrink-0">{c.avant}</span>
+                          <span className="text-gray-400 shrink-0">→</span>
+                          <span className="text-emerald-700 dark:text-emerald-400 font-mono shrink-0">{c.apres}</span>
+                          {c.regle && (
+                            <span className="ml-auto text-[11px] text-gray-400 dark:text-gray-500 italic truncate">{c.regle}</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
