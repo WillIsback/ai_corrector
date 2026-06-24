@@ -120,8 +120,10 @@ export function useCorrector() {
         }
       }
 
-      // LLM inference — returns structured { text, corrections }
-      const result = await correctText(currentText, settings);
+      // LLM inference — streams corrected text token by token, resolves with full result
+      const result = await correctText(currentText, settings, (delta) => {
+        setOutputText((prev) => prev + delta);
+      });
 
       if (!result.text || result.text.trim().length === 0) {
         throw new Error("LLM returned empty response");

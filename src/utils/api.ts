@@ -125,7 +125,23 @@ export interface CorrectionResult {
   corrections: CorrectionEntry[];
 }
 
-export async function correctText(text: string, settings: CorrectionSettings): Promise<CorrectionResult> {
+function parseCorrections(raw: unknown[]): CorrectionEntry[] {
+  return raw.map((c) => {
+    if (typeof c === "object" && c !== null) {
+      const e = c as Record<string, unknown>;
+      return { avant: String(e.avant ?? ""), apres: String(e.apres ?? ""), regle: String(e.regle ?? "") };
+    }
+    const str = String(c);
+    const idx = str.indexOf(" -> ");
+    return { avant: idx >= 0 ? str.slice(0, idx) : str, apres: idx >= 0 ? str.slice(idx + 4) : "", regle: "" };
+  });
+}
+
+export async function correctText(
+  text: string,
+  settings: CorrectionSettings,
+  onDelta?: (partial: string) => void,
+): Promise<CorrectionResult> {
   const systemPrompt = buildSystemPrompt(settings);
   const userPrompt = sanitizeInput(text);
 
@@ -140,7 +156,6 @@ export async function correctText(text: string, settings: CorrectionSettings): P
     correction_mode: settings.mode,
   };
 
-  // Cancel any ongoing request before starting a new one
   currentAbortController?.abort();
   const controller = new AbortController();
   currentAbortController = controller;
@@ -150,64 +165,57 @@ export async function correctText(text: string, settings: CorrectionSettings): P
   try {
     const response = await fetch("/corrector/v1/chat/completions", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: "Bearer no-key-needed",
-      },
+      headers: { "Content-Type": "application/json", Authorization: "Bearer no-key-needed" },
       body: JSON.stringify(request),
       signal: controller.signal,
     });
 
     clearTimeout(timeoutId);
-
-    // Clean up the ref after completion
     currentAbortController = null;
 
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
-    }
+    if (!response.ok) throw new Error(`API error: ${response.status}`);
+    if (!response.body) throw new Error("No response body");
 
-    const data: LLMResponse = await response.json();
+    // Consume SSE stream
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
 
-    if (data.choices?.[0]?.message) {
-      const raw = data.choices[0].message.content.trim();
-      try {
-        const parsed = JSON.parse(raw);
-        const rawCorrections = Array.isArray(parsed.corrections) ? parsed.corrections : [];
-        const corrections: CorrectionEntry[] = rawCorrections.map((c: unknown) => {
-          if (typeof c === "object" && c !== null) {
-            const entry = c as Record<string, unknown>;
-            return {
-              avant: String(entry.avant ?? ""),
-              apres: String(entry.apres ?? ""),
-              regle: String(entry.regle ?? ""),
-            };
-          }
-          // Fallback: ancienne forme "avant -> apres"
-          const str = String(c);
-          const idx = str.indexOf(" -> ");
-          return { avant: idx >= 0 ? str.slice(0, idx) : str, apres: idx >= 0 ? str.slice(idx + 4) : "", regle: "" };
-        });
-        return {
-          text: parsed.texte_corrige ?? parsed.corrected_text ?? raw,
-          corrections,
-        };
-      } catch {
-        return { text: raw, corrections: [] };
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+
+      // Process complete SSE events (delimited by double newline)
+      const parts = buf.split("\n\n");
+      buf = parts.pop() ?? "";
+
+      for (const part of parts) {
+        const line = part.trim();
+        if (!line.startsWith("data: ")) continue;
+        const payload = JSON.parse(line.slice(6));
+
+        if (payload.error) throw new Error(payload.error);
+
+        if (payload.delta && onDelta) {
+          onDelta(payload.delta);
+        }
+
+        if (payload.done) {
+          return {
+            text: payload.text ?? "",
+            corrections: parseCorrections(Array.isArray(payload.corrections) ? payload.corrections : []),
+          };
+        }
       }
     }
 
-    throw new Error("Invalid response format");
+    throw new Error("Stream ended without done event");
   } catch (error) {
     if (error instanceof Error) {
-      if (error.name === "AbortError") {
-        throw new Error("Delai d'attente depasse");
-      }
-      if (error.message.includes("Failed to fetch")) {
-        throw new Error(
-          "Impossible de contacter le serveur de correction. Verifiez que le serveur LLM est lance sur http://127.0.0.1:30000/v1",
-        );
-      }
+      if (error.name === "AbortError") throw new Error("Delai d'attente depasse");
+      if (error.message.includes("Failed to fetch"))
+        throw new Error("Impossible de contacter le serveur de correction. Verifiez que le serveur LLM est lance.");
     }
     throw error;
   }

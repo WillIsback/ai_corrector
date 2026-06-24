@@ -172,40 +172,77 @@ const _server = Bun.serve({
           "correction.mode": correctionMode,
         });
 
-        const completion = await llmClient.chat.completions.create({
+        const stream = await llmClient.chat.completions.create({
           ...llmBody,
+          stream: true,
           // Enforce disable thinking mode — vLLM/Qwen3 specific
           chat_template_kwargs: { enable_thinking: false },
         } as any);
 
-        const duration = Date.now() - startTime;
-        console.log(
-          `[LLM] Réponse: ${completion.usage?.total_tokens ?? "?"} tokens en ${duration}ms`,
-        );
+        const encoder = new TextEncoder();
+        // Regex to incrementally extract texte_corrige value as JSON streams in
+        const reTexte = /"texte_corrige"\s*:\s*"((?:[^"\\]|\\.)*)"/;
 
-        // Extraire le texte corrigé depuis la réponse JSON du LLM
-        let outputText = "";
-        try {
-          const rawContent = completion.choices?.[0]?.message?.content ?? "";
-          const parsed = JSON.parse(rawContent);
-          outputText = parsed.texte_corrige ?? parsed.corrected_text ?? rawContent;
-        } catch {
-          outputText = completion.choices?.[0]?.message?.content ?? "";
-        }
+        const readable = new ReadableStream({
+          async start(controller) {
+            let fullContent = "";
+            let lastExtractedLen = 0;
 
-        span.setAttributes({
-          "output.value": JSON.stringify(completion.choices),
-          "output.mime_type": "application/json",
-          "output.text": outputText.slice(0, 2000),
-          "llm.token_count.total": completion.usage?.total_tokens ?? 0,
-          "llm.token_count.prompt": completion.usage?.prompt_tokens ?? 0,
-          "llm.token_count.completion": completion.usage?.completion_tokens ?? 0,
+            try {
+              for await (const chunk of stream) {
+                const delta: string = (chunk as any).choices?.[0]?.delta?.content ?? "";
+                if (!delta) continue;
+                fullContent += delta;
+
+                // Try to stream the texte_corrige value progressively
+                const match = reTexte.exec(fullContent);
+                if (match) {
+                  const extracted = match[1].replace(/\\n/g, "\n").replace(/\\"/g, '"').replace(/\\\\/g, "\\");
+                  if (extracted.length > lastExtractedLen) {
+                    const newChars = extracted.slice(lastExtractedLen);
+                    lastExtractedLen = extracted.length;
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ delta: newChars })}\n\n`));
+                  }
+                }
+              }
+
+              // Parse complete JSON for corrections
+              const duration = Date.now() - startTime;
+              let outputText = "";
+              let corrections: unknown[] = [];
+              try {
+                const parsed = JSON.parse(fullContent);
+                outputText = parsed.texte_corrige ?? parsed.corrected_text ?? fullContent;
+                corrections = Array.isArray(parsed.corrections) ? parsed.corrections : [];
+              } catch {
+                outputText = fullContent;
+              }
+
+              console.log(`[LLM] Stream terminé en ${duration}ms`);
+              span.setAttributes({
+                "output.text": outputText.slice(0, 2000),
+                "output.value": fullContent.slice(0, 2000),
+                "output.mime_type": "application/json",
+              });
+              span.setStatus({ code: SpanStatusCode.OK });
+              span.end();
+
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true, text: outputText, corrections })}\n\n`));
+            } catch (err) {
+              span.setStatus({ code: SpanStatusCode.ERROR, message: String(err) });
+              span.end();
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: String(err) })}\n\n`));
+            } finally {
+              controller.close();
+            }
+          },
         });
-        span.setStatus({ code: SpanStatusCode.OK });
-        span.end();
 
         const headers = getCorsHeaders(req);
-        return new Response(JSON.stringify(completion), { headers });
+        headers.set("Content-Type", "text/event-stream");
+        headers.set("Cache-Control", "no-cache");
+        headers.set("X-Accel-Buffering", "no");
+        return new Response(readable, { headers });
       } catch (error) {
         const duration = Date.now() - startTime;
         console.error(
