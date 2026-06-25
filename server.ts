@@ -15,6 +15,7 @@ const VALID_WORDS_PATH = join(import.meta.dir, "public", "data", "valid-words.js
 const LT_TARGET = process.env.LT_TARGET ?? "http://127.0.0.1:3002";
 const LLM_TARGET = process.env.LLM_TARGET ?? "http://127.0.0.1:30000";
 const LLM_API_KEY = process.env.LLM_API_KEY ?? "";
+const LLM_MODEL_NAME = process.env.LLM_MODEL_NAME ?? "";
 
 const llmClient = new OpenAI({
   baseURL: `${LLM_TARGET}/v1`,
@@ -163,9 +164,10 @@ const _server = Bun.serve({
         const userMessage = [...messages].reverse().find((m) => m.role === "user");
         const inputText: string = userMessage?.content ?? "";
 
+        const resolvedModel = LLM_MODEL_NAME || llmBody.model || "unknown";
         span.setAttributes({
           "openinference.span.kind": "LLM",
-          "llm.model_name": llmBody.model ?? "unknown",
+          "llm.model_name": resolvedModel,
           "input.value": JSON.stringify(messages),
           "input.mime_type": "application/json",
           "input.text": inputText.slice(0, 2000),
@@ -174,6 +176,7 @@ const _server = Bun.serve({
 
         const stream = await llmClient.chat.completions.create({
           ...llmBody,
+          model: resolvedModel,
           stream: true,
           // Enforce disable thinking mode — vLLM/Qwen3 specific
           chat_template_kwargs: { enable_thinking: false },
