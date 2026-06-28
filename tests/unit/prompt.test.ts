@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildSystemPrompt, buildUserPrompt } from "../../src/utils/prompt";
 import type { CorrectionSettings } from "../../src/types";
+import { buildSystemPrompt, buildUserPrompt } from "../../src/utils/prompt";
 
 const base: CorrectionSettings = {
   engine: "llm",
@@ -32,7 +32,13 @@ describe("buildSystemPrompt", () => {
   });
 
   it("liste les corrections actives", () => {
-    const prompt = buildSystemPrompt({ ...base, fixGrammar: true, fixSpelling: false, fixSyntax: false, fixStyle: false });
+    const prompt = buildSystemPrompt({
+      ...base,
+      fixGrammar: true,
+      fixSpelling: false,
+      fixSyntax: false,
+      fixStyle: false,
+    });
     expect(prompt).toContain("grammaire");
     expect(prompt).not.toContain("orthographe");
   });
