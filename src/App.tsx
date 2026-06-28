@@ -7,7 +7,7 @@ import { Sidebar } from "./components/Sidebar";
 import { Toast } from "./components/Toast";
 import { useCorrector } from "./hooks/useCorrector";
 import { useLanguageTool } from "./hooks/useLanguageTool";
-import { initModel } from "./utils/api";
+import { initModel } from "./utils/models";
 
 function App() {
   const {

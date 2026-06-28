@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useCorrector } from "../../src/hooks/useCorrector";
 
 // Mock correctText at module level
-vi.mock("../../src/utils/api", () => ({
+vi.mock("../../src/utils/llm", () => ({
   correctText: vi.fn(),
 }));
 
@@ -38,7 +38,7 @@ describe("useCorrector", () => {
       let resolveFirstCall!: () => void;
 
       // Import the mock and configure it
-      const { correctText } = await import("../../src/utils/api");
+      const { correctText } = await import("../../src/utils/llm");
       vi.mocked(correctText).mockImplementation(
         (_text, _settings, callbacks) =>
           new Promise((resolve) => {
@@ -86,7 +86,7 @@ describe("useCorrector", () => {
     });
 
     it("isRunning_flag - Allow new calls after previous completes", async () => {
-      const { correctText } = await import("../../src/utils/api");
+      const { correctText } = await import("../../src/utils/llm");
       vi.mocked(correctText).mockImplementation((_text, _settings, callbacks) => {
         callbacks?.onTextDone?.("Corrected text", 100);
         return Promise.resolve([]);
@@ -129,14 +129,14 @@ describe("useCorrector", () => {
         });
       globalThis.fetch = ltFetch as unknown as typeof fetch;
 
-      const { correctText } = await import("../../src/utils/api");
+      const { correctText } = await import("../../src/utils/llm");
       vi.mocked(correctText).mockResolvedValue([]);
 
       const { result } = renderHook(() => useCorrector());
 
       await act(async () => {
         result.current.setTextContent("Test text");
-        result.current.setSettings((prev) => ({ ...prev, ltEnabled: true, ltPreFire: true }));
+        result.current.setSettings((prev) => ({ ...prev, engine: "lt" }));
       });
 
       // Démarre première correction - LT va être appelé
@@ -169,7 +169,7 @@ describe("useCorrector", () => {
       );
       globalThis.fetch = mockFetch as unknown as typeof fetch;
 
-      const { correctText } = await import("../../src/utils/api");
+      const { correctText } = await import("../../src/utils/llm");
       vi.mocked(correctText).mockImplementation(
         () =>
           new Promise((resolve) => {

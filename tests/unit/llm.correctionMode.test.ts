@@ -1,17 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CorrectionSettings } from "../../src/types";
-import { correctText } from "../../src/utils/api";
+import { correctText } from "../../src/utils/llm";
 
 const defaultSettings: CorrectionSettings = {
+  engine: "llm",
   mode: "formel",
   fixGrammar: true,
   fixSpelling: true,
   fixSyntax: true,
   fixStyle: true,
   showCorrections: true,
-  ltEnabled: true,
-  ltPreFire: true,
-  ltPostFire: false,
 };
 
 function makeSseMock(textPayload = "Texte corrigé.", corrections: unknown[] = []) {

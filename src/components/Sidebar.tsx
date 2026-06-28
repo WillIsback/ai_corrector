@@ -1,7 +1,7 @@
 import type React from "react";
 import { useEffect, useState } from "react";
 import type { CorrectionMode, CorrectionSettings } from "../types";
-import { getCurrentModel, subscribeToModelChange } from "../utils/api";
+import { getCurrentModel, subscribeToModelChange } from "../utils/models";
 import { ModelSelector } from "./ModelSelector";
 
 interface Props {

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { fetchModels, type ModelInfo, setCurrentModel } from "../utils/api";
+import type { ModelInfo } from "../types";
+import { fetchModels, setCurrentModel } from "../utils/models";
 
 interface Props {
   currentModel: string;

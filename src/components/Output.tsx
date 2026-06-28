@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { CorrectionEntry } from "../utils/api";
+import type { CorrectionEntry } from "../types";
 
 interface Props {
   outputText: string;
