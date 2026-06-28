@@ -13,49 +13,48 @@ const defaultSettings: CorrectionSettings = {
   ltPostFire: false,
 };
 
+function makeSseMock(textPayload = "Texte corrigé.", corrections: unknown[] = []) {
+  const encoder = new TextEncoder();
+  const chunks = [
+    encoder.encode(`data: ${JSON.stringify({ text_done: true, text: textPayload, duration: 100 })}\n\n`),
+    encoder.encode(`data: ${JSON.stringify({ done: true, corrections })}\n\n`),
+  ];
+  return vi.fn().mockResolvedValue({
+    ok: true,
+    status: 200,
+    body: new ReadableStream({
+      start(controller) {
+        for (const chunk of chunks) controller.enqueue(chunk);
+        controller.close();
+      },
+    }),
+  });
+}
+
 describe("correctText — correction_mode", () => {
   beforeEach(() => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: async () => ({
-          id: "test",
-          object: "chat.completion",
-          created: 0,
-          model: "qwen3",
-          choices: [
-            {
-              index: 0,
-              message: {
-                role: "assistant",
-                content: JSON.stringify({
-                  texte_corrige: "Texte corrigé.",
-                  corrections: [],
-                }),
-              },
-              finish_reason: "stop",
-            },
-          ],
-        }),
-      })
-    );
     vi.stubGlobal("import.meta", { env: {} });
   });
 
   it("envoie correction_mode dans le body de la requête LLM", async () => {
+    const mockFetch = makeSseMock();
+    vi.spyOn(global, "fetch").mockImplementation(mockFetch);
+
     await correctText("Texte a corriger.", { ...defaultSettings, mode: "informel" });
 
-    const fetchCall = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    const fetchCall = mockFetch.mock.calls[0];
     const body = JSON.parse(fetchCall[1].body);
     expect(body.correction_mode).toBe("informel");
   });
 
   it("envoie correction_mode pour chaque mode", async () => {
     for (const mode of ["formel", "semi-formel", "informel", "technical"] as const) {
+      const mockFetch = makeSseMock();
+      vi.spyOn(global, "fetch").mockImplementation(mockFetch);
+
       await correctText("Texte.", { ...defaultSettings, mode: mode as CorrectionSettings["mode"] });
-      const fetchCall = (fetch as ReturnType<typeof vi.fn>).mock.calls[(fetch as ReturnType<typeof vi.fn>).mock.calls.length - 1];
+
+      const fetchCall = mockFetch.mock.calls[0];
       const body = JSON.parse(fetchCall[1].body);
       expect(body.correction_mode).toBe(mode);
     }

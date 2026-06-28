@@ -7,16 +7,11 @@ vi.mock("../../src/utils/api", () => ({
   correctText: vi.fn(),
 }));
 
-// Mock entityDetector and validWords to avoid extra fetch calls
-vi.mock("../../src/services/entityDetector", () => ({
-  detectEntities: vi.fn().mockReturnValue([]),
-  getEntityOffsets: vi.fn().mockReturnValue([]),
-  markEntitiesInOutput: vi.fn().mockReturnValue([]),
-}));
-
 vi.mock("../../src/services/validWords", () => ({
   loadValidWords: vi.fn().mockResolvedValue(new Set<string>()),
   addValidWord: vi.fn().mockResolvedValue(undefined),
+  isWordValid: vi.fn().mockReturnValue(false),
+  resetCache: vi.fn(),
 }));
 
 describe("useCorrector", () => {
@@ -47,14 +42,17 @@ describe("useCorrector", () => {
       });
 
       // Simuler une correction lente avec mock sur correctText
-      let resolveFirstCall: (value: string) => void;
+      let resolveFirstCall!: () => void;
 
       // Import the mock and configure it
       const { correctText } = await import("../../src/utils/api");
       vi.mocked(correctText).mockImplementation(
-        () =>
+        (_text, _settings, callbacks) =>
           new Promise((resolve) => {
-            resolveFirstCall = () => resolve("First result");
+            resolveFirstCall = () => {
+              callbacks?.onTextDone?.("First result", 100);
+              resolve([]);
+            };
           }),
       );
 
@@ -70,8 +68,8 @@ describe("useCorrector", () => {
         result.current.handleCorrect();
       });
 
-      // Vérifie que isRunning est à true
-      expect(result.current.isRunning).toBe(true);
+      // Vérifie que isLoading est à true (la correction est en cours)
+      expect(result.current.isLoading).toBe(true);
 
       // Tente une deuxième correction pendant que la première est en cours
       // Cette deuxième appel ne devrait PAS démarrer
@@ -79,25 +77,29 @@ describe("useCorrector", () => {
         result.current.handleCorrect();
       });
 
-      // La deuxième correction ne devrait pas être comptabilisée comme une nouvelle exécution
-      // isRunning devrait toujours être true (première correction pas terminée)
-      expect(result.current.isRunning).toBe(true);
+      // isLoading devrait toujours être true (première correction pas terminée)
+      expect(result.current.isLoading).toBe(true);
 
       // Résout la première correction
       await act(async () => {
-        resolveFirstCall!();
+        resolveFirstCall();
         await new Promise((r) => setTimeout(r, 10));
       });
 
-      // Après résolution, isRunning devrait être false
-      expect(result.current.isRunning).toBe(false);
+      // Après résolution, isLoading devrait être false
+      expect(result.current.isLoading).toBe(false);
       // Le résultat devrait être le premier
       expect(result.current.outputText).toBe("First result");
     });
 
     it("isRunning_flag - Allow new calls after previous completes", async () => {
       const { correctText } = await import("../../src/utils/api");
-      vi.mocked(correctText).mockResolvedValue("Corrected text");
+      vi.mocked(correctText).mockImplementation(
+        (_text, _settings, callbacks) => {
+          callbacks?.onTextDone?.("Corrected text", 100);
+          return Promise.resolve([]);
+        },
+      );
 
       const { result } = renderHook(() => useCorrector());
 
@@ -111,7 +113,7 @@ describe("useCorrector", () => {
         await new Promise((r) => setTimeout(r, 10));
       });
 
-      expect(result.current.isRunning).toBe(false);
+      expect(result.current.isLoading).toBe(false);
       expect(result.current.outputText).toBe("Corrected text");
 
       // Deuxième correction devrait être possible
@@ -120,7 +122,7 @@ describe("useCorrector", () => {
         await new Promise((r) => setTimeout(r, 10));
       });
 
-      expect(result.current.isRunning).toBe(false);
+      expect(result.current.isLoading).toBe(false);
     });
   });
 
@@ -166,16 +168,6 @@ describe("useCorrector", () => {
     });
 
     it("no setState après unmount pendant correction", async () => {
-      // Mock loadValidWords as deferred so unmount can happen before LT fetch
-      let resolveLoadValidWords: (value: Set<string>) => void;
-      const { loadValidWords } = await import("../../src/services/validWords");
-      vi.mocked(loadValidWords).mockImplementation(
-        () =>
-          new Promise((resolve) => {
-            resolveLoadValidWords = resolve as (value: Set<string>) => void;
-          }),
-      );
-
       // Simuler fetch lent pour LT
       let resolveFetch: (value: unknown) => void;
       const mockFetch = vi.fn().mockImplementation(
@@ -206,14 +198,12 @@ describe("useCorrector", () => {
         result.current.setTextContent("Test text");
       });
 
-      // Démarre correction (suspend sur loadValidWords)
+      // Démarre correction
       act(() => {
         result.current.handleCorrect();
       });
 
-      // Résout loadValidWords pour que handleCorrect avance jusqu'au fetch LT
       await act(async () => {
-        resolveLoadValidWords!(new Set<string>());
         await new Promise((r) => setTimeout(r, 10));
       });
 
