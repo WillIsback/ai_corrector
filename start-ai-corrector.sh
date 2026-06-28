@@ -4,7 +4,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LOG_DIR="/home/wderue/logs"
+LOG_DIR="${LOG_DIR:-$HOME/logs}"
 mkdir -p "$LOG_DIR"
 
 # Colors
