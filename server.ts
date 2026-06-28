@@ -45,7 +45,7 @@ function writeValidWords(words: string[]): void {
   renameSync(tmpPath, VALID_WORDS_PATH);
 }
 
-const _server = Bun.serve({
+Bun.serve({
   port: PORT,
   async fetch(req: Request): Promise<Response> {
     const url = new URL(req.url);
