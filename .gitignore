@@ -38,3 +38,9 @@ public/data/valid-words.json
 
 # Plans et specs de développement (contiennent des infos perso)
 docs/superpowers/
+
+# Expérimentations ML
+evals/
+
+# Données dupliquées (source de vérité : public/data/)
+data/
