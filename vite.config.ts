@@ -7,14 +7,13 @@ export default defineConfig({
   server: {
     port: 25001,
     host: true,
-    allowedHosts: ["spark-787d-1.tail6cba9f.ts.net", "ai-corrector.spark-787d-1.tail6cba9f.ts.net"],
     proxy: {
-      "/corrector/api": {
+      "/api": {
         target: "http://127.0.0.1:25000",
         changeOrigin: true,
         secure: false,
       },
-      "/corrector/v1": {
+      "/v1": {
         target: "http://127.0.0.1:25000",
         changeOrigin: true,
         secure: false,
