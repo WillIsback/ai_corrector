@@ -28,7 +28,9 @@ function App() {
 
   const { isAvailable: ltAvailable } = useLanguageTool();
 
-  useEffect(() => { initModel(); }, []);
+  useEffect(() => {
+    initModel();
+  }, []);
 
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [toast, setToast] = useState<Toast | null>(null);

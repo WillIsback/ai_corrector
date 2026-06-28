@@ -128,11 +128,19 @@ function parseCorrections(raw: unknown[]): CorrectionEntry[] {
   return raw.map((c) => {
     if (typeof c === "object" && c !== null) {
       const e = c as Record<string, unknown>;
-      return { avant: String(e.avant ?? ""), apres: String(e.apres ?? ""), regle: String(e.regle ?? "") };
+      return {
+        avant: String(e.avant ?? ""),
+        apres: String(e.apres ?? ""),
+        regle: String(e.regle ?? ""),
+      };
     }
     const str = String(c);
     const idx = str.indexOf(" -> ");
-    return { avant: idx >= 0 ? str.slice(0, idx) : str, apres: idx >= 0 ? str.slice(idx + 4) : "", regle: "" };
+    return {
+      avant: idx >= 0 ? str.slice(0, idx) : str,
+      apres: idx >= 0 ? str.slice(idx + 4) : "",
+      regle: "",
+    };
   });
 }
 
@@ -214,7 +222,9 @@ export async function correctText(
     if (error instanceof Error) {
       if (error.name === "AbortError") throw new Error("Delai d'attente depasse");
       if (error.message.includes("Failed to fetch"))
-        throw new Error("Impossible de contacter le serveur de correction. Verifiez que le serveur LLM est lance.");
+        throw new Error(
+          "Impossible de contacter le serveur de correction. Verifiez que le serveur LLM est lance.",
+        );
     }
     throw error;
   }
@@ -235,15 +245,21 @@ function buildSystemPrompt(settings: CorrectionSettings): string {
     fixStyle: "style",
   };
 
-  const activeCorrections = (Object.entries(correctionLabels) as [keyof CorrectionSettings, string][])
+  const activeCorrections = (
+    Object.entries(correctionLabels) as [keyof CorrectionSettings, string][]
+  )
     .filter(([key]) => settings[key] === true)
     .map(([, label]) => label)
     .join(", ");
 
   const base =
     "Tu es un correcteur editorial expert en francais. " +
-    "Mode: " + modeDescriptions[settings.mode] + ". " +
-    "Corrections actives: " + (activeCorrections || "toutes") + ". " +
+    "Mode: " +
+    modeDescriptions[settings.mode] +
+    ". " +
+    "Corrections actives: " +
+    (activeCorrections || "toutes") +
+    ". " +
     "Corrige UNIQUEMENT ce qui necessite une correction selon ces criteres. Ne change pas le sens ni le style au-dela du mode demande. " +
     "Reponds UNIQUEMENT avec un objet JSON valide, sans markdown, sans texte avant ou apres:\n";
 
@@ -255,5 +271,5 @@ function buildSystemPrompt(settings: CorrectionSettings): string {
     );
   }
 
-  return base + '{"texte_corrige": "le texte corrige complet"}';
+  return `${base}{"texte_corrige": "le texte corrige complet"}`;
 }

@@ -1,8 +1,8 @@
 import type React from "react";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import type { CorrectionMode, CorrectionSettings } from "../types";
-import { ModelSelector } from "./ModelSelector";
 import { getCurrentModel, subscribeToModelChange } from "../utils/api";
+import { ModelSelector } from "./ModelSelector";
 
 interface Props {
   settings: CorrectionSettings;
@@ -184,7 +184,9 @@ export function Sidebar({ settings, setSettings }: Props) {
                 </div>
               </div>
               <div className="flex flex-col min-w-0">
-                <span className="text-sm text-gray-700 dark:text-gray-300">Détail des corrections</span>
+                <span className="text-sm text-gray-700 dark:text-gray-300">
+                  Détail des corrections
+                </span>
                 <span className="text-[11px] text-gray-400 dark:text-gray-500">
                   {settings.showCorrections ? "Ralentit l'inférence" : "Mode rapide"}
                 </span>
@@ -194,10 +196,7 @@ export function Sidebar({ settings, setSettings }: Props) {
         </div>
       </div>
 
-      <ModelSelector
-        currentModel={currentModel}
-        onModelSelect={setCurrentModelState}
-      />
+      <ModelSelector currentModel={currentModel} onModelSelect={setCurrentModelState} />
 
       <div className="pt-4 border-t border-gray-200/60 dark:border-gray-700/60">
         <h2 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">

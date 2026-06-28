@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback } from "react";
-import { fetchModels, setCurrentModel, ModelInfo } from "../utils/api";
+import { useCallback, useEffect, useState } from "react";
+import { fetchModels, type ModelInfo, setCurrentModel } from "../utils/api";
 
 interface Props {
   currentModel: string;
@@ -51,6 +51,7 @@ export function ModelSelector({ currentModel, onModelSelect }: Props) {
         <div className="px-3 py-2">
           <p className="text-xs text-red-400">{error}</p>
           <button
+            type="button"
             onClick={loadModels}
             className="mt-1 text-xs text-brand-500 hover:text-brand-600 transition-colors"
           >
@@ -71,6 +72,7 @@ export function ModelSelector({ currentModel, onModelSelect }: Props) {
             const isActive = currentModel === m.id;
             return (
               <button
+                type="button"
                 key={m.id}
                 onClick={() => handleSelect(m.id)}
                 className={`w-full flex items-center gap-2.5 cursor-pointer px-3 py-2 rounded-xl text-left transition-all duration-200
@@ -88,9 +90,7 @@ export function ModelSelector({ currentModel, onModelSelect }: Props) {
                         : "border-gray-300 dark:border-gray-600"
                     }`}
                 >
-                  {isActive && (
-                    <span className="w-1.5 h-1.5 bg-white rounded-full" />
-                  )}
+                  {isActive && <span className="w-1.5 h-1.5 bg-white rounded-full" />}
                 </span>
                 <span className="text-sm font-medium truncate">{m.id}</span>
               </button>
@@ -101,6 +101,7 @@ export function ModelSelector({ currentModel, onModelSelect }: Props) {
 
       {!loading && models.length > 0 && (
         <button
+          type="button"
           onClick={loadModels}
           className="mt-2 w-full text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors px-3 py-1"
         >

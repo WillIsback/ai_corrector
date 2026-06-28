@@ -7,7 +7,6 @@ vi.mock("../../src/utils/api", () => ({
   correctText: vi.fn(),
 }));
 
-
 describe("useCorrector", () => {
   let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
 
@@ -88,12 +87,10 @@ describe("useCorrector", () => {
 
     it("isRunning_flag - Allow new calls after previous completes", async () => {
       const { correctText } = await import("../../src/utils/api");
-      vi.mocked(correctText).mockImplementation(
-        (_text, _settings, callbacks) => {
-          callbacks?.onTextDone?.("Corrected text", 100);
-          return Promise.resolve([]);
-        },
-      );
+      vi.mocked(correctText).mockImplementation((_text, _settings, callbacks) => {
+        callbacks?.onTextDone?.("Corrected text", 100);
+        return Promise.resolve([]);
+      });
 
       const { result } = renderHook(() => useCorrector());
 
@@ -123,13 +120,13 @@ describe("useCorrector", () => {
   describe("request cancellation", () => {
     it("AbortController - Annule les requêtes LT en cours lors d'un nouveau handleCorrect", async () => {
       // Simuler LT call avec AbortController
-      let abortSignal: AbortSignal | null = null;
-      const ltFetch = vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
-        abortSignal = init?.signal as AbortSignal;
-        return new Promise((_, reject) => {
-          // Ne jamais résoudre automatiquement - on va tester l'abort
+      const ltFetch = vi
+        .fn()
+        .mockImplementation((_input: RequestInfo | URL, _init?: RequestInit) => {
+          return new Promise(() => {
+            // Ne jamais résoudre automatiquement - on va tester l'abort
+          });
         });
-      });
       globalThis.fetch = ltFetch as unknown as typeof fetch;
 
       const { correctText } = await import("../../src/utils/api");
@@ -206,6 +203,7 @@ describe("useCorrector", () => {
 
       // Résout le fetch LT après unmount
       await act(async () => {
+        // biome-ignore lint/style/noNonNullAssertion: set in mock before unmount
         resolveFetch!({ ok: true, json: async () => ({ matches: [] }) });
         await new Promise((r) => setTimeout(r, 50));
       });

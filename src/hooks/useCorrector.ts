@@ -40,7 +40,9 @@ export function useCorrector() {
         // Merge with defaults to handle missing fields from older versions
         setSettings((prev) => ({ ...prev, ...parsed }));
       }
-    } catch { /* use defaults */ }
+    } catch {
+      /* use defaults */
+    }
   }, []);
 
   const localStorageTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -55,14 +57,23 @@ export function useCorrector() {
   useEffect(() => {
     if (localStorageTimeoutRef.current) clearTimeout(localStorageTimeoutRef.current);
     localStorageTimeoutRef.current = setTimeout(() => {
-      try { localStorage.setItem("ai-corrector:settings", JSON.stringify(settings)); } catch { /* ignore */ }
+      try {
+        localStorage.setItem("ai-corrector:settings", JSON.stringify(settings));
+      } catch {
+        /* ignore */
+      }
     }, 500);
-    return () => { if (localStorageTimeoutRef.current) clearTimeout(localStorageTimeoutRef.current); };
+    return () => {
+      if (localStorageTimeoutRef.current) clearTimeout(localStorageTimeoutRef.current);
+    };
   }, [settings]);
 
   const handleCorrect = useCallback(async () => {
     if (isRunningRef.current) return;
-    if (!textContent.trim()) { setError("Veuillez entrer du texte"); return; }
+    if (!textContent.trim()) {
+      setError("Veuillez entrer du texte");
+      return;
+    }
 
     isRunningRef.current = true;
     setIsLoadingText(true);
@@ -71,7 +82,12 @@ export function useCorrector() {
     setOutputText("");
     setCorrections([]);
     setLtWarning(null);
-    setStats({ processingTime: 0, modificationCount: 0, ltPreCorrections: 0, ltPostCorrections: 0 });
+    setStats({
+      processingTime: 0,
+      modificationCount: 0,
+      ltPreCorrections: 0,
+      ltPostCorrections: 0,
+    });
 
     let currentText = textContent;
     abortControllerRef.current = new AbortController();
@@ -116,7 +132,9 @@ export function useCorrector() {
             setOutputText(finalText);
             setStats((prev) => ({ ...prev, ltPostCorrections: postResult.matchCount }));
           }
-        } catch (e) { console.warn("Post-fire LT failed:", e); }
+        } catch (e) {
+          console.warn("Post-fire LT failed:", e);
+        }
       }
 
       setCorrections(corrections);
@@ -137,7 +155,12 @@ export function useCorrector() {
     setTextContent("");
     setOutputText("");
     setCorrections([]);
-    setStats({ processingTime: 0, modificationCount: 0, ltPreCorrections: 0, ltPostCorrections: 0 });
+    setStats({
+      processingTime: 0,
+      modificationCount: 0,
+      ltPreCorrections: 0,
+      ltPostCorrections: 0,
+    });
     setError(null);
     setLtWarning(null);
   }, []);

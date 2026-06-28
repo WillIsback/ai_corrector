@@ -74,8 +74,20 @@ export function Output({
 
           {isLoadingCorrections && !outputText && (
             <div className="mt-5 flex items-center gap-3 text-sm text-gray-400 dark:text-gray-500">
-              <svg className="w-4 h-4 animate-spin text-brand-500" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <svg
+                aria-hidden="true"
+                className="w-4 h-4 animate-spin text-brand-500"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
               </svg>
               Correction en cours…
@@ -138,8 +150,20 @@ export function Output({
                     </span>
                   </div>
                   {isLoadingCorrections ? (
-                    <svg className="w-5 h-5 mt-0.5 animate-spin text-brand-500" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <svg
+                      aria-hidden="true"
+                      className="w-5 h-5 mt-0.5 animate-spin text-brand-500"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                     </svg>
                   ) : (
@@ -190,11 +214,25 @@ export function Output({
 
               {isLoadingCorrections && (
                 <div className="mt-5 flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500">
-                  <svg className="w-3.5 h-3.5 animate-spin text-brand-500" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <svg
+                    aria-hidden="true"
+                    className="w-3.5 h-3.5 animate-spin text-brand-500"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                   </svg>
-                  <span className="uppercase tracking-wider font-semibold">Analyse des corrections…</span>
+                  <span className="uppercase tracking-wider font-semibold">
+                    Analyse des corrections…
+                  </span>
                 </div>
               )}
 
@@ -226,11 +264,30 @@ export function Output({
                         divide-gray-100 dark:divide-gray-700/60 overflow-hidden"
                     >
                       {corrections.map((c, i) => (
-                        <div key={i} className="grid grid-cols-[1fr_auto_1fr_1fr] items-center gap-2 px-4 py-2.5 text-[13px] min-w-0">
-                          <span className="text-red-500 dark:text-red-400 line-through font-mono truncate" title={c.avant}>{c.avant}</span>
+                        <div
+                          // biome-ignore lint/suspicious/noArrayIndexKey: corrections list is static per render
+                          key={i}
+                          className="grid grid-cols-[1fr_auto_1fr_1fr] items-center gap-2 px-4 py-2.5 text-[13px] min-w-0"
+                        >
+                          <span
+                            className="text-red-500 dark:text-red-400 line-through font-mono truncate"
+                            title={c.avant}
+                          >
+                            {c.avant}
+                          </span>
                           <span className="text-gray-400 shrink-0">→</span>
-                          <span className="text-emerald-700 dark:text-emerald-400 font-mono truncate" title={c.apres}>{c.apres}</span>
-                          <span className="text-[11px] text-gray-400 dark:text-gray-500 italic truncate text-right" title={c.regle}>{c.regle}</span>
+                          <span
+                            className="text-emerald-700 dark:text-emerald-400 font-mono truncate"
+                            title={c.apres}
+                          >
+                            {c.apres}
+                          </span>
+                          <span
+                            className="text-[11px] text-gray-400 dark:text-gray-500 italic truncate text-right"
+                            title={c.regle}
+                          >
+                            {c.regle}
+                          </span>
                         </div>
                       ))}
                     </div>

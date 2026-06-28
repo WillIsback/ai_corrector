@@ -35,3 +35,6 @@ evals/.venv/
 
 # Données utilisateur (générées au runtime)
 public/data/valid-words.json
+
+# Plans et specs de développement (contiennent des infos perso)
+docs/superpowers/

@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { correctText } from "../../src/utils/api";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CorrectionSettings } from "../../src/types";
+import { correctText } from "../../src/utils/api";
 
 const defaultSettings: CorrectionSettings = {
   mode: "formel",
@@ -17,7 +17,9 @@ const defaultSettings: CorrectionSettings = {
 function makeSseMock(textPayload = "Texte corrigé.", corrections: unknown[] = []) {
   const encoder = new TextEncoder();
   const chunks = [
-    encoder.encode(`data: ${JSON.stringify({ text_done: true, text: textPayload, duration: 100 })}\n\n`),
+    encoder.encode(
+      `data: ${JSON.stringify({ text_done: true, text: textPayload, duration: 100 })}\n\n`,
+    ),
     encoder.encode(`data: ${JSON.stringify({ done: true, corrections })}\n\n`),
   ];
   return vi.fn().mockResolvedValue({

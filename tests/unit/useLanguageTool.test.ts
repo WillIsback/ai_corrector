@@ -23,7 +23,7 @@ describe("useLanguageTool", () => {
             resolveFetch = resolve;
           }),
       );
-      globalThis.fetch = mockFetch as typeof fetch;
+      globalThis.fetch = mockFetch as unknown as typeof fetch;
 
       // Spy sur console.error pour capturer les warnings React
       const errorCalls: unknown[][] = [];
@@ -45,6 +45,7 @@ describe("useLanguageTool", () => {
       // Maintenant on résout le fetch - si le cleanup est manquant,
       // setIsAvailable sera appelé sur un unmounted component et causera un warning
       await act(async () => {
+        // biome-ignore lint/style/noNonNullAssertion: set in mock before unmount
         resolveFetch!({ ok: true });
         await new Promise((r) => setTimeout(r, 50));
       });

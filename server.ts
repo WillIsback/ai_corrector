@@ -3,7 +3,7 @@ import "./telemetry.ts";
 
 import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { trace, SpanKind, SpanStatusCode } from "@opentelemetry/api";
+import { SpanKind, SpanStatusCode, trace } from "@opentelemetry/api";
 import OpenAI from "openai";
 import { config } from "./config.ts";
 
@@ -49,7 +49,7 @@ Bun.serve({
   port: PORT,
   async fetch(req: Request): Promise<Response> {
     const url = new URL(req.url);
-    let path = url.pathname;
+    const path = url.pathname;
 
     // === API: Valid Words ===
     if (path === "/api/valid-words") {
@@ -141,6 +141,7 @@ Bun.serve({
       });
 
       try {
+        // biome-ignore lint/suspicious/noExplicitAny: req.json() returns unknown JSON structure
         const body = (await req.json()) as any;
 
         // Extraire les métadonnées de correction (non transmises à vLLM)
@@ -166,12 +167,13 @@ Bun.serve({
           ? { chat_template_kwargs: { enable_thinking: false } }
           : {};
 
-        const stream = (await llmClient.chat.completions.create({
-          ...llmBody,
-          model: resolvedModel,
-          stream: true,
-          ...extraParams,
-        } as any)) as unknown as AsyncIterable<{ choices?: Array<{ delta?: { content?: string } }> }>;
+        const createParams = { ...llmBody, model: resolvedModel, stream: true, ...extraParams };
+        // biome-ignore lint/suspicious/noExplicitAny: OpenAI SDK requires escape hatch for spread params
+        const stream = (await llmClient.chat.completions.create(
+          createParams as any,
+        )) as unknown as AsyncIterable<{
+          choices?: Array<{ delta?: { content?: string } }>;
+        }>;
 
         const encoder = new TextEncoder();
         // Regex to detect when texte_corrige is complete (closing quote present)
@@ -184,16 +186,23 @@ Bun.serve({
 
             try {
               for await (const chunk of stream) {
-                const delta: string = (chunk as any).choices?.[0]?.delta?.content ?? "";
+                const delta: string = chunk.choices?.[0]?.delta?.content ?? "";
                 if (!delta) continue;
                 fullContent += delta;
 
                 if (!textDoneSent) {
                   const fullMatch = reFull.exec(fullContent);
                   if (fullMatch) {
-                    const extracted = fullMatch[1].replace(/\\n/g, "\n").replace(/\\"/g, '"').replace(/\\\\/g, "\\");
+                    const extracted = fullMatch[1]
+                      .replace(/\\n/g, "\n")
+                      .replace(/\\"/g, '"')
+                      .replace(/\\\\/g, "\\");
                     const textDuration = Date.now() - startTime;
-                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text_done: true, text: extracted, duration: textDuration })}\n\n`));
+                    controller.enqueue(
+                      encoder.encode(
+                        `data: ${JSON.stringify({ text_done: true, text: extracted, duration: textDuration })}\n\n`,
+                      ),
+                    );
                     textDoneSent = true;
                   }
                 }
@@ -221,11 +230,15 @@ Bun.serve({
               span.setStatus({ code: SpanStatusCode.OK });
               span.end();
 
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true, corrections })}\n\n`));
+              controller.enqueue(
+                encoder.encode(`data: ${JSON.stringify({ done: true, corrections })}\n\n`),
+              );
             } catch (err) {
               span.setStatus({ code: SpanStatusCode.ERROR, message: String(err) });
               span.end();
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: String(err) })}\n\n`));
+              controller.enqueue(
+                encoder.encode(`data: ${JSON.stringify({ error: String(err) })}\n\n`),
+              );
             } finally {
               controller.close();
             }
