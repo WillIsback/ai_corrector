@@ -39,7 +39,7 @@ describe("correctText — correction_mode", () => {
 
   it("envoie correction_mode dans le body de la requête LLM", async () => {
     const mockFetch = makeSseMock();
-    vi.spyOn(global, "fetch").mockImplementation(mockFetch);
+    vi.spyOn(globalThis, "fetch").mockImplementation(mockFetch);
 
     await correctText("Texte a corriger.", { ...defaultSettings, mode: "informel" });
 
@@ -51,7 +51,7 @@ describe("correctText — correction_mode", () => {
   it("envoie correction_mode pour chaque mode", async () => {
     for (const mode of ["formel", "semi-formel", "informel", "technical"] as const) {
       const mockFetch = makeSseMock();
-      vi.spyOn(global, "fetch").mockImplementation(mockFetch);
+      vi.spyOn(globalThis, "fetch").mockImplementation(mockFetch);
 
       await correctText("Texte.", { ...defaultSettings, mode: mode as CorrectionSettings["mode"] });
 
