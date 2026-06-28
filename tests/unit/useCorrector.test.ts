@@ -7,12 +7,6 @@ vi.mock("../../src/utils/api", () => ({
   correctText: vi.fn(),
 }));
 
-vi.mock("../../src/services/validWords", () => ({
-  loadValidWords: vi.fn().mockResolvedValue(new Set<string>()),
-  addValidWord: vi.fn().mockResolvedValue(undefined),
-  isWordValid: vi.fn().mockReturnValue(false),
-  resetCache: vi.fn(),
-}));
 
 describe("useCorrector", () => {
   let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
@@ -139,7 +133,7 @@ describe("useCorrector", () => {
       globalThis.fetch = ltFetch as typeof fetch;
 
       const { correctText } = await import("../../src/utils/api");
-      vi.mocked(correctText).mockResolvedValue("LLM result");
+      vi.mocked(correctText).mockResolvedValue([]);
 
       const { result } = renderHook(() => useCorrector());
 
@@ -182,7 +176,7 @@ describe("useCorrector", () => {
       vi.mocked(correctText).mockImplementation(
         () =>
           new Promise((resolve) => {
-            resolve("Corrected");
+            resolve([]);
           }),
       );
 

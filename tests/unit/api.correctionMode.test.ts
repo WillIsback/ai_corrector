@@ -8,6 +8,7 @@ const defaultSettings: CorrectionSettings = {
   fixSpelling: true,
   fixSyntax: true,
   fixStyle: true,
+  showCorrections: true,
   ltEnabled: true,
   ltPreFire: true,
   ltPostFire: false,
