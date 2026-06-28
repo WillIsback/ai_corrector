@@ -32,3 +32,6 @@ temp/
 # Python venvs
 .venv/
 evals/.venv/
+
+# Données utilisateur (générées au runtime)
+public/data/valid-words.json
