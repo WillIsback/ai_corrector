@@ -21,7 +21,6 @@ function App() {
     isLoadingCorrections,
     error,
     stats,
-    ltWarning,
     handleCorrect,
     handleReset,
   } = useCorrector();
@@ -57,7 +56,7 @@ function App() {
     <div className="min-h-screen flex flex-col bg-gray-50/50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 transition-colors duration-200">
       <div className="fixed inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-50/40 via-transparent to-transparent dark:from-blue-950/20 pointer-events-none" />
 
-      {!ltAvailable && <LTSetupBanner />}
+      {settings.engine === "lt" && !ltAvailable && <LTSetupBanner />}
       <Header theme={theme} onToggleTheme={() => setTheme(theme === "light" ? "dark" : "light")} />
 
       <div className="flex flex-1 overflow-hidden">
@@ -78,7 +77,6 @@ function App() {
           onReset={handleReset}
           isLoading={isLoading}
           isLoadingCorrections={isLoadingCorrections}
-          ltWarning={ltWarning}
         />
       </div>
 
