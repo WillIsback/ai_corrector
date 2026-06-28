@@ -67,7 +67,7 @@ export function subscribeToModelChange(listener: (model: string) => void): () =>
 }
 
 export async function fetchModels(): Promise<ModelInfo[]> {
-  const response = await fetch("/corrector/v1/models", {
+  const response = await fetch("/v1/models", {
     headers: { Authorization: "Bearer no-key-needed" },
   });
   if (!response.ok) {
@@ -165,7 +165,7 @@ export async function correctText(
   const timeoutId = setTimeout(() => controller.abort(), 30000);
 
   try {
-    const response = await fetch("/corrector/v1/chat/completions", {
+    const response = await fetch("/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: "Bearer no-key-needed" },
       body: JSON.stringify(request),

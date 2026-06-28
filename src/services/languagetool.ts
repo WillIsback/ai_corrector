@@ -1,6 +1,6 @@
 import type { LTMatch, LTResponse } from "../types";
 
-const LT_API_BASE = import.meta.env.VITE_LT_API_BASE || "/corrector/api/lt";
+const LT_API_BASE = import.meta.env.VITE_LT_API_BASE || "/api/lt";
 
 let protectedAcronyms: Set<string> | null = null;
 
