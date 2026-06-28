@@ -5,30 +5,26 @@ import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { trace, SpanKind, SpanStatusCode } from "@opentelemetry/api";
 import OpenAI from "openai";
+import { config } from "./config.ts";
 
 const tracer = trace.getTracer("ai-corrector");
 
-const PORT = 25000;
+const PORT = config.port;
 const DIST_DIR = join(import.meta.dir, "dist");
 const VALID_WORDS_PATH = join(import.meta.dir, "public", "data", "valid-words.json");
 
-const LT_TARGET = process.env.LT_TARGET ?? "http://127.0.0.1:3002";
-const LLM_TARGET = process.env.LLM_TARGET ?? "http://127.0.0.1:30000";
-const LLM_API_KEY = process.env.LLM_API_KEY ?? "";
-const LLM_MODEL_NAME = process.env.LLM_MODEL_NAME ?? "";
-
 const llmClient = new OpenAI({
-  baseURL: `${LLM_TARGET}/v1`,
-  apiKey: LLM_API_KEY || "unused",
+  baseURL: `${config.llmTarget}/v1`,
+  apiKey: config.llmApiKey || "unused",
 });
 
 function getCorsHeaders(req: Request): Headers {
   const origin = req.headers.get("Origin") ?? "";
-  const allowed =
-    origin.includes(".ts.net") || origin.includes("localhost") || origin.includes("127.0.0.1");
+  const isLocalhost = origin.includes("localhost") || origin.includes("127.0.0.1");
+  const isAllowed = isLocalhost || config.corsOrigins.some((o) => origin === o);
   const headers = new Headers();
   headers.set("Content-Type", "application/json");
-  if (allowed) {
+  if (isAllowed) {
     headers.set("Access-Control-Allow-Origin", origin);
   }
   return headers;
@@ -55,14 +51,8 @@ const _server = Bun.serve({
     const url = new URL(req.url);
     let path = url.pathname;
 
-    // Normalize path: Caddy's handle_path strips /corrector prefix,
-    // so re-add it for API routes that arrive without the prefix.
-    if ((path.startsWith("/api/") || path.startsWith("/v1/")) && !path.startsWith("/corrector/")) {
-      path = `/corrector${path}`;
-    }
-
     // === API: Valid Words ===
-    if (path === "/corrector/api/valid-words") {
+    if (path === "/api/valid-words") {
       const headers = getCorsHeaders(req);
 
       if (req.method === "OPTIONS") {
@@ -111,9 +101,9 @@ const _server = Bun.serve({
     }
 
     // === API: LanguageTool Proxy ===
-    if (path.startsWith("/corrector/api/lt/")) {
-      const ltPath = path.replace("/corrector/api/lt", "");
-      const ltUrl = `${LT_TARGET}${ltPath}${url.search}`;
+    if (path.startsWith("/api/lt/")) {
+      const ltPath = path.replace("/api/lt", "");
+      const ltUrl = `${config.ltTarget}${ltPath}${url.search}`;
 
       try {
         const ltResponse = await fetch(ltUrl, {
@@ -125,10 +115,8 @@ const _server = Bun.serve({
 
         const responseHeaders = new Headers(ltResponse.headers);
         const origin = req.headers.get("Origin") ?? "";
-        const allowed =
-          origin.includes(".ts.net") ||
-          origin.includes("localhost") ||
-          origin.includes("127.0.0.1");
+        const isLocalhost = origin.includes("localhost") || origin.includes("127.0.0.1");
+        const allowed = isLocalhost || config.corsOrigins.some((o) => origin === o);
         responseHeaders.set("Access-Control-Allow-Origin", allowed ? origin : "");
 
         return new Response(ltResponse.body, {
@@ -144,7 +132,7 @@ const _server = Bun.serve({
     }
 
     // === API: LLM — Chat Completions (OpenAI SDK → OTEL instrumented) ===
-    if (path === "/corrector/v1/chat/completions" && req.method === "POST") {
+    if (path === "/v1/chat/completions" && req.method === "POST") {
       console.log("[LLM] Chat completion via SDK");
       const startTime = Date.now();
 
@@ -164,7 +152,7 @@ const _server = Bun.serve({
         const userMessage = [...messages].reverse().find((m) => m.role === "user");
         const inputText: string = userMessage?.content ?? "";
 
-        const resolvedModel = LLM_MODEL_NAME || llmBody.model || "unknown";
+        const resolvedModel = config.llmModelName || llmBody.model || "unknown";
         span.setAttributes({
           "openinference.span.kind": "LLM",
           "llm.model_name": resolvedModel,
@@ -174,12 +162,15 @@ const _server = Bun.serve({
           "correction.mode": correctionMode,
         });
 
+        const extraParams = config.llmDisableThinking
+          ? { chat_template_kwargs: { enable_thinking: false } }
+          : {};
+
         const stream = await llmClient.chat.completions.create({
           ...llmBody,
           model: resolvedModel,
           stream: true,
-          // Enforce disable thinking mode — vLLM/Qwen3 specific
-          chat_template_kwargs: { enable_thinking: false },
+          ...extraParams,
         } as any);
 
         const encoder = new TextEncoder();
@@ -268,14 +259,14 @@ const _server = Bun.serve({
     }
 
     // === API: LLM Proxy (fallback for other LLM routes) ===
-    if (path.startsWith("/corrector/v1/")) {
-      const llmPath = path.replace("/corrector", "");
-      const llmUrl = `${LLM_TARGET}${llmPath}${url.search}`;
+    if (path.startsWith("/v1/")) {
+      const llmPath = path;
+      const llmUrl = `${config.llmTarget}${llmPath}${url.search}`;
 
       try {
         // Override Authorization with the real LLM API key (frontend sends a placeholder)
         const proxyHeaders = new Headers(req.headers);
-        if (LLM_API_KEY) proxyHeaders.set("Authorization", `Bearer ${LLM_API_KEY}`);
+        if (config.llmApiKey) proxyHeaders.set("Authorization", `Bearer ${config.llmApiKey}`);
 
         const llmResponse = await fetch(llmUrl, {
           method: req.method,
@@ -286,10 +277,8 @@ const _server = Bun.serve({
 
         const responseHeaders = new Headers(llmResponse.headers);
         const origin = req.headers.get("Origin") ?? "";
-        const allowed =
-          origin.includes(".ts.net") ||
-          origin.includes("localhost") ||
-          origin.includes("127.0.0.1");
+        const isLocalhost = origin.includes("localhost") || origin.includes("127.0.0.1");
+        const allowed = isLocalhost || config.corsOrigins.some((o) => origin === o);
         responseHeaders.set("Access-Control-Allow-Origin", allowed ? origin : "");
 
         return new Response(llmResponse.body, {
@@ -321,4 +310,4 @@ const _server = Bun.serve({
   },
 });
 
-console.log(`🚀 AI Corrector server running on http://localhost:${PORT}`);
+console.log(`🚀 AI Corrector server running on http://localhost:${config.port}`);
