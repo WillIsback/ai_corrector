@@ -196,78 +196,30 @@ export function Sidebar({ settings, setSettings }: Props) {
         </div>
       </div>
 
-      <ModelSelector currentModel={currentModel} onModelSelect={setCurrentModelState} />
+      {settings.engine === "llm" && (
+        <ModelSelector currentModel={currentModel} onModelSelect={setCurrentModelState} />
+      )}
 
-      <div className="pt-4 border-t border-gray-200/60 dark:border-gray-700/60">
+      <div className="mb-5 pt-4 border-t border-gray-200/60 dark:border-gray-700/60">
         <h2 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">
-          LanguageTool
-          <span className="text-[10px] font-normal text-gray-300 dark:text-gray-600 ml-1.5 normal-case">
-            toujours actif
-          </span>
+          Moteur
         </h2>
-
-        <div className="space-y-0.5">
-          <label
-            className="flex items-center gap-2.5 px-3 py-2 rounded-xl cursor-pointer
-              hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
-          >
-            <div className="relative">
-              <input
-                type="checkbox"
-                checked={settings.ltPreFire}
-                onChange={(e) => setSettings({ ...settings, ltPreFire: e.target.checked })}
-                className="peer sr-only"
-              />
-              <div
-                className="w-4 h-4 rounded-[5px] border-2 border-gray-300 dark:border-gray-600
-                  peer-checked:border-amber-500 peer-checked:bg-amber-500
-                  transition-all duration-150 flex items-center justify-center"
-              >
-                <svg
-                  aria-hidden="true"
-                  className="w-2.5 h-2.5 text-white opacity-0 peer-checked:opacity-100 transition-opacity"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={3}
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-            </div>
-            <span className="text-sm text-gray-700 dark:text-gray-300">Pré-correction</span>
-          </label>
-
-          <label
-            className="flex items-center gap-2.5 px-3 py-2 rounded-xl cursor-pointer
-              hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
-          >
-            <div className="relative">
-              <input
-                type="checkbox"
-                checked={settings.ltPostFire}
-                onChange={(e) => setSettings({ ...settings, ltPostFire: e.target.checked })}
-                className="peer sr-only"
-              />
-              <div
-                className="w-4 h-4 rounded-[5px] border-2 border-gray-300 dark:border-gray-600
-                  peer-checked:border-amber-500 peer-checked:bg-amber-500
-                  transition-all duration-150 flex items-center justify-center"
-              >
-                <svg
-                  aria-hidden="true"
-                  className="w-2.5 h-2.5 text-white opacity-0 peer-checked:opacity-100 transition-opacity"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={3}
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-            </div>
-            <span className="text-sm text-gray-700 dark:text-gray-300">Post-correction</span>
-          </label>
+        <div className="flex rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden text-sm">
+          {(["llm", "lt"] as const).map((eng) => (
+            <button
+              type="button"
+              key={eng}
+              onClick={() => setSettings({ ...settings, engine: eng })}
+              className={`flex-1 py-2 font-medium transition-colors
+                ${
+                  settings.engine === eng
+                    ? "bg-brand-500 text-white"
+                    : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                }`}
+            >
+              {eng === "llm" ? "LLM" : "LanguageTool"}
+            </button>
+          ))}
         </div>
       </div>
     </aside>
