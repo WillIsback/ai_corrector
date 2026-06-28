@@ -166,12 +166,12 @@ const _server = Bun.serve({
           ? { chat_template_kwargs: { enable_thinking: false } }
           : {};
 
-        const stream = await llmClient.chat.completions.create({
+        const stream = (await llmClient.chat.completions.create({
           ...llmBody,
           model: resolvedModel,
           stream: true,
           ...extraParams,
-        } as any);
+        } as any)) as unknown as AsyncIterable<{ choices?: Array<{ delta?: { content?: string } }> }>;
 
         const encoder = new TextEncoder();
         // Regex to detect when texte_corrige is complete (closing quote present)

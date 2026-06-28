@@ -130,7 +130,7 @@ describe("useCorrector", () => {
           // Ne jamais résoudre automatiquement - on va tester l'abort
         });
       });
-      globalThis.fetch = ltFetch as typeof fetch;
+      globalThis.fetch = ltFetch as unknown as typeof fetch;
 
       const { correctText } = await import("../../src/utils/api");
       vi.mocked(correctText).mockResolvedValue([]);
@@ -170,7 +170,7 @@ describe("useCorrector", () => {
             resolveFetch = resolve;
           }),
       );
-      globalThis.fetch = mockFetch as typeof fetch;
+      globalThis.fetch = mockFetch as unknown as typeof fetch;
 
       const { correctText } = await import("../../src/utils/api");
       vi.mocked(correctText).mockImplementation(
