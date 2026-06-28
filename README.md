@@ -2,6 +2,8 @@
 
 Correcteur et reformateur de rédaction en français alimenté par LLM.
 
+[![Documentation](https://img.shields.io/badge/docs-en%20ligne-blue?style=flat-square)](https://willisback.github.io/ai_corrector/)
+
 ## Architecture
 
 ```
