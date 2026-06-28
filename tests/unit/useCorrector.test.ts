@@ -187,6 +187,7 @@ describe("useCorrector", () => {
 
       await act(async () => {
         result.current.setTextContent("Test text");
+        result.current.setSettings((prev) => ({ ...prev, engine: "lt" }));
       });
 
       // Démarre correction
