@@ -7,14 +7,11 @@ interface Props {
   stats: {
     processingTime: number;
     modificationCount: number;
-    ltPreCorrections: number;
-    ltPostCorrections: number;
   };
   onCopy: (text: string) => void;
   onReset: () => void;
   isLoading: boolean;
   isLoadingCorrections?: boolean;
-  ltWarning?: string | null;
 }
 
 export function Output({
@@ -25,7 +22,6 @@ export function Output({
   onReset,
   isLoading,
   isLoadingCorrections,
-  ltWarning,
 }: Props) {
   const [correctionsOpen, setCorrectionsOpen] = useState(false);
   return (
@@ -172,45 +168,7 @@ export function Output({
                     </p>
                   )}
                 </div>
-
-                {stats.ltPreCorrections > 0 && (
-                  <div
-                    className="bg-white dark:bg-gray-800/80 p-3.5 rounded-xl border border-amber-200/60
-                      dark:border-amber-800/40 shadow-subtle"
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[11px] font-medium text-amber-500 uppercase tracking-wider">
-                        LT Pré
-                      </span>
-                    </div>
-                    <p className="text-xl font-semibold text-amber-600 dark:text-amber-400 tabular-nums">
-                      {stats.ltPreCorrections}
-                    </p>
-                  </div>
-                )}
-
-                {stats.ltPostCorrections > 0 && (
-                  <div
-                    className="bg-white dark:bg-gray-800/80 p-3.5 rounded-xl border border-amber-200/60
-                      dark:border-amber-800/40 shadow-subtle"
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[11px] font-medium text-amber-500 uppercase tracking-wider">
-                        LT Post
-                      </span>
-                    </div>
-                    <p className="text-xl font-semibold text-amber-600 dark:text-amber-400 tabular-nums">
-                      {stats.ltPostCorrections}
-                    </p>
-                  </div>
-                )}
               </div>
-
-              {ltWarning && (
-                <div className="mt-3 p-3 bg-amber-50/80 dark:bg-amber-900/20 border border-amber-200/60 dark:border-amber-800/40 rounded-xl">
-                  <p className="text-xs text-amber-600 dark:text-amber-400">{ltWarning}</p>
-                </div>
-              )}
 
               {isLoadingCorrections && (
                 <div className="mt-5 flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500">
