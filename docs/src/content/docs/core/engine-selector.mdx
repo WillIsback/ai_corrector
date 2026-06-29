@@ -1,0 +1,36 @@
+---
+title: "Sélecteur de moteur"
+description: "Toggle manuel entre LLM et LanguageTool dans la sidebar."
+---
+
+AI Corrector propose deux moteurs de correction, sélectionnables manuellement via le bouton segmenté en bas de la sidebar.
+
+## LLM
+
+Appelle `/v1/chat/completions` sur votre serveur LLM via streaming SSE.
+
+- Supporte les quatre modes de rédaction (formel, semi-formel, informel, technique)
+- Applique les toggles granulaires (grammaire, orthographe, syntaxe, style)
+- Retourne le texte corrigé en streaming puis la liste de corrections
+- Requiert un serveur LLM configuré (`LLM_TARGET`)
+
+**Idéal pour :** reformulations stylistiques, corrections contextuelles complexes, textes longs.
+
+## LanguageTool
+
+Appelle `/api/lt/v2/check` (proxy vers le serveur LanguageTool configuré en `LT_TARGET`).
+
+- Détecte les erreurs grammaticales et orthographiques par règles
+- Applique automatiquement la première suggestion de remplacement pour chaque match
+- Rapide et déterministe, ne nécessite pas de GPU
+- Requiert le service LanguageTool (`docker compose up -d` le démarre)
+
+**Idéal pour :** vérifications orthographiques rapides, corrections factuelles sans reformulation.
+
+## Sélection
+
+Le toggle **LLM | LanguageTool** est en bas de la sidebar. Le choix est sauvegardé dans `localStorage` et restauré à la prochaine session.
+
+:::note
+Les modes de rédaction et les toggles de correction sont ignorés en mode LanguageTool — ce moteur ne lit pas le prompt système.
+:::

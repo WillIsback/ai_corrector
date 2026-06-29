@@ -1,0 +1,62 @@
+---
+title: "Architecture"
+description: "Stack Bun.js + React SPA, flux de correction, télémétrie."
+---
+
+## Vue d'ensemble
+
+AI Corrector est composé de deux parties :
+
+- **Frontend** : SPA React (compilée avec Vite), servie par le serveur Bun depuis `dist/`
+- **Backend** : Serveur Bun (`server.ts`) qui joue le rôle de proxy intelligent et d'API
+
+```
+Navigateur (React SPA)
+        │
+        │ fetch / SSE
+        ▼
+┌─────────────────────────────────────────────────────┐
+│               Bun HTTP Server (server.ts)            │
+│                                                      │
+│  /v1/chat/completions ──► OpenAI SDK ──► LLM       │
+│  /v1/*                ──► proxy LLM                 │
+│  /api/lt/*            ──► proxy LanguageTool        │
+│  /api/valid-words     ──► JSON sur disque           │
+│  /*                   ──► fichiers statiques dist/  │
+└─────────────────────────────────────────────────────┘
+        │                           │
+        ▼                           ▼
+  LLM (vLLM/Ollama/         LanguageTool
+   OpenAI/Groq…)            (erikvl87/languagetool)
+        │
+        ▼ (optionnel)
+  OTLP Collector
+  (Phoenix/Jaeger…)
+```
+
+## Flux de correction LLM
+
+1. L'utilisateur saisit du texte et clique sur "Corriger"
+2. `useCorrector.ts` appelle `correctText()` (`src/utils/llm.ts`)
+3. `buildSystemPrompt()` construit le prompt selon le mode et les toggles actifs
+4. `sanitizeInput()` valide et nettoie le texte (max 10 000 chars)
+5. Le serveur Bun reçoit la requête `/v1/chat/completions` et la transmet au LLM via l'OpenAI SDK
+6. Le LLM streame sa réponse JSON ; le serveur extrait `texte_corrige` dès qu'il est complet (event `text_done`)
+7. Une fois le stream terminé, le serveur parse les corrections et envoie l'event `done`
+8. Le frontend affiche le texte corrigé et la liste des corrections
+
+## Flux de correction LanguageTool
+
+1. `useCorrector.ts` appelle `runLanguageTool()` (`src/services/languagetool.ts`)
+2. Requête `POST /api/lt/v2/check` avec `text` et `language=fr`
+3. Le serveur proxyfie vers `LT_TARGET/v2/check`
+4. `applyLTCorrections()` applique la première suggestion de chaque match (par offset décroissant)
+5. Le texte corrigé et la liste de corrections sont retournés
+
+## Persistance des données
+
+Un seul fichier persisté : `public/data/valid-words.json`. Les écritures sont atomiques (fichier temporaire + renommage).
+
+## Télémétrie
+
+Si `OTEL_EXPORTER_OTLP_ENDPOINT` est défini, `telemetry.ts` enregistre un provider OTLP au démarrage. Chaque appel `/v1/chat/completions` crée un span `llm.chat` instrumenté par l'OpenAI SDK via OpenInference.

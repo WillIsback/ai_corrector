@@ -1,0 +1,49 @@
+---
+title: "Mots personnalisés"
+description: "Dictionnaire de mots valides persisté sur disque."
+---
+
+AI Corrector maintient un dictionnaire de mots valides persisté dans `public/data/valid-words.json`. Les mots ajoutés survivent aux redémarrages du service.
+
+:::note
+Les mots valides sont utilisés par le moteur LanguageTool pour ignorer certains termes. Le moteur LLM les reçoit dans le contexte si le fichier est présent.
+:::
+
+## Ajouter un mot
+
+```http
+POST /api/valid-words
+Content-Type: application/json
+
+{"word": "mon-terme-technique"}
+```
+
+**Validation côté serveur :**
+- Longueur max : 100 caractères
+- Caractères autorisés : lettres, apostrophes (`'` `'`), tirets, espaces (`[\p{L}''\-\s]+`)
+- Les doublons sont ignorés silencieusement
+
+**Réponse :**
+```json
+{"words": ["mot1", "mot2", "mon-terme-technique"]}
+```
+
+## Lister les mots
+
+```http
+GET /api/valid-words
+```
+
+**Réponse :**
+```json
+{"words": ["mot1", "mot2"]}
+```
+
+## Persistance
+
+Les mots sont écrits atomiquement dans `public/data/valid-words.json` via un fichier temporaire (renommage atomique). Si vous utilisez Docker, montez un volume sur `/app/public/data` pour persister les données :
+
+```yaml
+volumes:
+  - ai_corrector_data:/app/public/data
+```

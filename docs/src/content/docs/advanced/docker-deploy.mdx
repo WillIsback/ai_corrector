@@ -1,0 +1,114 @@
+---
+title: "Déploiement Docker"
+description: "Stack LanguageTool + AI Corrector avec Traefik en production."
+---
+
+## Stack minimale
+
+La stack de base lance AI Corrector et LanguageTool. C'est ce que génère le script `install.sh` :
+
+```yaml
+services:
+  languagetool:
+    image: erikvl87/languagetool:latest
+    container_name: ai-corrector-lt
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8010/v2/languages"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  ai-corrector:
+    image: ghcr.io/willisback/ai_corrector:latest
+    container_name: ai_corrector
+    ports:
+      - "25000:25000"
+    volumes:
+      - ai_corrector_data:/app/public/data
+    environment:
+      LT_TARGET: "http://languagetool:8010"
+      LLM_TARGET: "http://your-llm-server:11434"
+      # LLM_API_KEY: "sk-your-api-key"
+      # LLM_MODEL_NAME: "llama3"
+      LLM_DISABLE_THINKING: "true"
+    depends_on:
+      languagetool:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  ai_corrector_data:
+```
+
+## Intégration production avec Traefik
+
+Exemple de configuration pour exposer AI Corrector derrière un reverse proxy Traefik sur un réseau interne. Le frontend est servi sous `/corrector`, les routes API sont accessibles directement.
+
+```yaml
+services:
+  ai-corrector:
+    image: ghcr.io/willisback/ai_corrector:latest
+    container_name: ai_corrector
+    networks: [your-network]
+    volumes:
+      - ai_corrector_data:/app/public/data
+    environment:
+      LT_TARGET: "http://languagetool:8010"
+      LLM_TARGET: "http://<votre-serveur-llm>:30000"
+      LLM_API_KEY: "sk-your-api-key"
+      LLM_MODEL_NAME: "votre-modele"
+      LLM_DISABLE_THINKING: "true"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://phoenix:6006"
+    depends_on:
+      languagetool:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "bun run -e 'fetch(\"http://localhost:25000\").then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))'"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    labels:
+      - "traefik.enable=true"
+      # Frontend : sert la SPA React (préfixe /corrector strippé)
+      - "traefik.http.routers.corrector.rule=PathPrefix(`/corrector`)"
+      - "traefik.http.routers.corrector.entrypoints=web"
+      - "traefik.http.routers.corrector.middlewares=strip-corrector@file"
+      - "traefik.http.services.corrector.loadbalancer.server.port=25000"
+      # Routes API : le JS du navigateur appelle ces chemins en absolu
+      - "traefik.http.routers.corrector-api.rule=PathPrefix(`/api/lt`) || PathPrefix(`/api/valid-words`) || PathPrefix(`/v1`)"
+      - "traefik.http.routers.corrector-api.entrypoints=web"
+      - "traefik.http.routers.corrector-api.service=corrector"
+
+  languagetool:
+    image: erikvl87/languagetool:latest
+    container_name: ai-corrector-lt
+    networks: [your-network]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8010/v2/languages"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+networks:
+  your-network:
+    external: true
+
+volumes:
+  ai_corrector_data:
+```
+
+:::tip
+Le middleware `strip-corrector` doit être défini dans votre configuration Traefik statique pour supprimer le préfixe `/corrector` avant de passer la requête au conteneur.
+:::
+
+## Notes importantes
+
+- Le healthcheck utilise `bun run -e` pour tester la disponibilité du serveur sans dépendances externes
+- Montez toujours un volume sur `/app/public/data` pour persister le dictionnaire de mots valides
+- `LLM_DISABLE_THINKING: "true"` est requis pour vLLM avec Qwen3 ; mettre `false` pour OpenAI, Groq, Mistral

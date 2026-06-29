@@ -1,5 +1,6 @@
 # Build outputs
 dist/
+.astro/
 *.log
 
 # Sourcemap files
@@ -38,6 +39,7 @@ public/data/valid-words.json
 
 # Plans et specs de développement (contiennent des infos perso)
 docs/superpowers/
+.superpowers/
 
 # Expérimentations ML
 evals/

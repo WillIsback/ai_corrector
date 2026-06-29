@@ -1,0 +1,55 @@
+---
+title: "Installation"
+description: "Installez AI Corrector via script, Docker, ou en mode développement."
+---
+
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+
+## Script d'installation (recommandé)
+
+La méthode la plus simple. Le script télécharge l'image Docker publiée, configure votre `.env` interactivement et démarre les services.
+
+```bash
+curl -fsSL https://github.com/WillIsback/ai_corrector/releases/latest/download/install.sh | bash
+```
+
+Le script vous demande :
+- L'URL de votre serveur LLM (ex : `http://localhost:11434` pour Ollama)
+- La clé API (laisser vide pour Ollama)
+- Le nom du modèle
+- Si activer `LLM_DISABLE_THINKING` (pour vLLM/Qwen3)
+
+## Docker Compose (manuel)
+
+```bash
+# Récupérer l'image publiée
+docker pull ghcr.io/willisback/ai_corrector:latest
+
+# Cloner pour obtenir docker-compose.yml et .env.example
+git clone https://github.com/WillIsback/ai_corrector.git
+cd ai_corrector
+cp .env.example .env
+# Éditer .env
+docker compose up -d
+```
+
+## Mode développement (Bun)
+
+Requiert [Bun](https://bun.sh) ≥ 1.1.
+
+```bash
+git clone https://github.com/WillIsback/ai_corrector.git
+cd ai_corrector
+cp .env.example .env
+# Éditer .env
+bun install
+bun run dev      # Lance Vite (frontend) + serveur Bun
+```
+
+## Vérification
+
+```bash
+curl http://localhost:25000
+```
+
+Expected : page HTML de l'application.

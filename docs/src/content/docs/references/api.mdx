@@ -1,0 +1,92 @@
+---
+title: "Référence API"
+description: "Endpoints du serveur Bun : LLM, LanguageTool proxy, mots valides."
+---
+
+Le serveur Bun (`server.ts`) expose les routes suivantes.
+
+## Correction LLM
+
+```http
+POST /v1/chat/completions
+Content-Type: application/json
+Authorization: Bearer no-key-needed
+```
+
+Corps :
+```json
+{
+  "model": "nom-du-modele",
+  "messages": [
+    {"role": "system", "content": "...prompt système..."},
+    {"role": "user", "content": "texte à corriger"}
+  ],
+  "temperature": 0.3,
+  "correction_mode": "formel"
+}
+```
+
+Réponse : flux **Server-Sent Events** (SSE).
+
+| Événement | Champs | Description |
+|-----------|--------|-------------|
+| `text_done` | `text`, `duration` | Texte corrigé disponible |
+| `done` | `corrections[]` | Liste finale des corrections |
+| `error` | `error` | Erreur LLM |
+
+```
+data: {"text_done": true, "text": "Texte corrigé.", "duration": 1234}
+
+data: {"done": true, "corrections": [{"avant": "...", "apres": "...", "regle": "..."}]}
+```
+
+:::note
+Le champ `correction_mode` est extrait par le serveur avant transmission au LLM (utilisé uniquement pour les traces OTEL).
+:::
+
+## Liste des modèles LLM
+
+```http
+GET /v1/models
+Authorization: Bearer no-key-needed
+```
+
+Retourne les modèles disponibles sur le serveur LLM configuré.
+
+## Proxy LanguageTool
+
+```http
+POST /api/lt/v2/check
+Content-Type: application/x-www-form-urlencoded
+
+text=Votre+texte&language=fr
+```
+
+Proxy transparent vers `LT_TARGET/v2/check`. Retourne la réponse LanguageTool telle quelle.
+
+## Mots valides
+
+### Lister
+
+```http
+GET /api/valid-words
+```
+
+```json
+{"words": ["mot1", "mot2"]}
+```
+
+### Ajouter
+
+```http
+POST /api/valid-words
+Content-Type: application/json
+
+{"word": "mon-terme"}
+```
+
+```json
+{"words": ["mot1", "mot2", "mon-terme"]}
+```
+
+Erreur 400 si le mot dépasse 100 caractères ou contient des caractères non autorisés.

@@ -1,0 +1,65 @@
+---
+title: "FAQ"
+description: "Dépannage et erreurs courantes."
+---
+
+## LanguageTool ne répond pas
+
+**Q :** Le moteur LanguageTool retourne une erreur.
+
+**R :** Vérifiez que le service est démarré :
+```bash
+docker compose ps
+docker compose logs languagetool
+```
+Le healthcheck attend jusqu'à 30s au démarrage. Attendez que le statut passe à `healthy`.
+
+---
+
+## Le LLM retourne une erreur d'authentification
+
+**Q :** Erreur 401 ou "authentication failed".
+
+**R :** Vérifiez `LLM_API_KEY` dans `.env`. Pour Ollama, la clé doit être vide ou absente. Pour vLLM, elle peut être n'importe quelle valeur non vide.
+
+---
+
+## Le LLM retourne une réponse vide
+
+**Q :** Le texte corrigé est vide ou le stream se termine sans résultat.
+
+**R :** Vérifiez `LLM_DISABLE_THINKING`. Certains modèles vLLM/Qwen3 émettent d'abord un bloc "thinking" qui peut perturber le parsing JSON. Mettre `LLM_DISABLE_THINKING=true` résout ce problème.
+
+---
+
+## Erreur de port déjà utilisé
+
+**Q :** `Error: listen EADDRINUSE :::25000`
+
+**R :** Arrêtez le processus existant ou modifiez `PORT` dans `.env`.
+
+```bash
+# Trouver le processus
+lsof -i :25000
+# Ou changer le port
+echo "PORT=25001" >> .env
+```
+
+---
+
+## Le modèle n'est pas détecté automatiquement
+
+**Q :** L'interface affiche "auto" comme modèle et la correction échoue.
+
+**R :** Définissez `LLM_MODEL_NAME` dans `.env`, ou vérifiez que votre serveur LLM expose `/v1/models` correctement.
+
+---
+
+## Erreur CORS
+
+**Q :** Erreur CORS dans la console navigateur.
+
+**R :** Si vous accédez à l'application depuis un domaine différent de `localhost`, ajoutez l'origine dans `.env` :
+```env
+CORS_ORIGIN=https://votre-domaine.com
+```

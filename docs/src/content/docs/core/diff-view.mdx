@@ -1,0 +1,39 @@
+---
+title: "Panneau de résultat"
+description: "Texte corrigé, stats de traitement et liste de corrections avant/après."
+---
+
+Le panneau de résultat (côté droit de l'interface) affiche le texte corrigé et les détails des modifications appliquées.
+
+## Texte corrigé
+
+Le texte corrigé s'affiche dès que le LLM termine le streaming (événement `text_done`). En mode LanguageTool, il apparaît après traitement complet.
+
+## Statistiques
+
+Deux indicateurs s'affichent après chaque correction :
+
+| Indicateur | Description |
+|------------|-------------|
+| **Temps** | Durée de traitement en millisecondes |
+| **Corrections** | Nombre de modifications apportées |
+
+## Liste des corrections
+
+Si l'option **"Détail des corrections"** est activée (mode LLM) ou si LanguageTool retourne des matches, une liste collapsible s'affiche sous les stats :
+
+```
+avant (barré en rouge)  →  après (en vert)   règle appliquée (italique)
+```
+
+Exemple :
+```
+il travail             →  il travaille       accord sujet-verbe
+```
+
+Cliquer sur l'en-tête "Corrections (N)" ouvre ou ferme la liste.
+
+## Actions
+
+- **Copier** : copie le texte corrigé dans le presse-papiers
+- **Réinitialiser** : vide le texte d'entrée et le résultat

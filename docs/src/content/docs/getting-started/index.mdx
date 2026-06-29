@@ -1,0 +1,69 @@
+---
+title: "Démarrage rapide"
+description: "Lancez AI Corrector en 5 minutes."
+---
+
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+
+AI Corrector est une application web de correction et reformulation en français. Elle combine un LLM (compatible API OpenAI) avec LanguageTool pour offrir quatre modes de rédaction et deux moteurs commutables.
+
+## Prérequis
+
+- Docker et docker-compose installés, **ou** Bun ≥ 1.1
+- Un serveur LLM compatible API OpenAI (Ollama, vLLM, OpenAI…)
+
+## Démarrage rapide
+
+<Tabs>
+<TabItem label="Script install (recommandé)">
+
+```bash
+curl -fsSL https://github.com/WillIsback/ai_corrector/releases/latest/download/install.sh | bash
+```
+
+Le script configure `.env` et `docker-compose.yml` interactivement, puis lance les conteneurs.
+
+</TabItem>
+<TabItem label="Docker">
+
+```bash
+git clone https://github.com/WillIsback/ai_corrector.git
+cd ai_corrector
+cp .env.example .env
+# Éditer .env : renseigner LLM_TARGET
+docker compose up -d
+```
+
+</TabItem>
+<TabItem label="Développement (Bun)">
+
+```bash
+git clone https://github.com/WillIsback/ai_corrector.git
+cd ai_corrector
+cp .env.example .env
+# Éditer .env : renseigner LLM_TARGET
+bun install
+bun run dev
+```
+
+</TabItem>
+</Tabs>
+
+Ouvrez [http://localhost:25000](http://localhost:25000) dans votre navigateur.
+
+## Structure du projet
+
+```
+ai_corrector/
+├── src/
+│   ├── components/    # Composants React (Editor, Sidebar, Output…)
+│   ├── hooks/         # useCorrector, useLanguageTool
+│   ├── services/      # languagetool.ts
+│   └── utils/         # llm.ts, prompt.ts, sanitize.ts, models.ts
+├── server.ts          # Serveur Bun (proxy LLM + LT + valid-words + static)
+├── config.ts          # Lecture des variables d'environnement
+├── telemetry.ts       # Initialisation OpenTelemetry (optionnel)
+├── public/data/       # valid-words.json (persisté)
+├── docker-compose.yml # Stack LanguageTool
+└── .env.example       # Variables de configuration
+```

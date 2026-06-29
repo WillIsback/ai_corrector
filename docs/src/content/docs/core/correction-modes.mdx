@@ -1,0 +1,80 @@
+---
+title: "Modes de correction"
+description: "Quatre modes de rédaction et quatre toggles de corrections granulaires."
+---
+
+AI Corrector propose quatre modes qui définissent le registre stylistique du texte corrigé, combinés à des toggles granulaires pour contrôler les types de corrections appliquées.
+
+## Les quatre modes
+
+| Mode | Description | Cas d'usage |
+|------|-------------|-------------|
+| **Formel** | Formel et professionnel | Rapports, courriers officiels |
+| **Semi-formel** | Neutre, adapté au courrier | Emails professionnels, lettres |
+| **Informel** | Décontracté, style conversationnel | Messages, réseaux sociaux |
+| **Technique** | Texte technique, clarté et précision | Documentation, code, manuels |
+
+## Toggles de correction
+
+Indépendamment du mode, quatre types de corrections sont activables/désactivables :
+
+| Toggle | Description |
+|--------|-------------|
+| **Grammaire** | Accords, conjugaisons, syntaxe de phrase |
+| **Orthographe** | Fautes d'orthographe lexicale |
+| **Syntaxe** | Structure des phrases, ponctuation |
+| **Style** | Formulations maladroites, répétitions |
+
+L'option **"Détail des corrections"** contrôle si le LLM génère la liste avant/après. La désactiver accélère l'inférence (le LLM retourne uniquement `texte_corrige`).
+
+## Prompt système
+
+Le prompt est construit dynamiquement par `src/utils/prompt.ts` selon les paramètres actifs :
+
+```
+Tu es un correcteur éditorial expert en français.
+Mode: {description du mode}.
+Corrections actives: {toggles actifs séparés par virgules, ou "toutes" si tous actifs}.
+Corrige UNIQUEMENT ce qui nécessite une correction selon ces critères.
+Ne change pas le sens ni le style au-delà du mode demandé.
+Réponds UNIQUEMENT avec un objet JSON valide, sans markdown, sans texte avant ou après:
+```
+
+### Avec "Détail des corrections" activé
+
+```json
+{
+  "texte_corrige": "le texte corrigé complet",
+  "corrections": [
+    {
+      "avant": "expression originale",
+      "apres": "expression corrigée",
+      "regle": "nom court de la règle ex: accord sujet-verbe"
+    }
+  ]
+}
+```
+
+Si aucune correction n'est nécessaire, `corrections` est un tableau vide `[]`.
+
+### Avec "Détail des corrections" désactivé (mode rapide)
+
+```json
+{
+  "texte_corrige": "le texte corrigé complet"
+}
+```
+
+## Exemple — mode Formel, grammaire + orthographe
+
+Prompt système généré :
+
+```
+Tu es un correcteur éditorial expert en français.
+Mode: Formel et professionnel.
+Corrections actives: grammaire, orthographe.
+Corrige UNIQUEMENT ce qui nécessite une correction selon ces critères.
+Ne change pas le sens ni le style au-delà du mode demandé.
+Réponds UNIQUEMENT avec un objet JSON valide, sans markdown, sans texte avant ou après:
+{"texte_corrige": "...", "corrections": [...]}
+```

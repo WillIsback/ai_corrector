@@ -1,0 +1,57 @@
+---
+title: "Configuration"
+description: "Variables d'environnement du serveur Bun."
+---
+
+AI Corrector se configure via un fichier `.env` (copié depuis `.env.example`).
+
+## Variables essentielles
+
+| Variable | Description | Valeur par défaut |
+|----------|-------------|-------------------|
+| `PORT` | Port d'écoute du serveur Bun | `25000` |
+| `LLM_TARGET` | URL du serveur LLM compatible API OpenAI | `http://localhost:11434` |
+| `LLM_API_KEY` | Clé API LLM (laisser vide pour Ollama) | _(vide)_ |
+| `LLM_MODEL_NAME` | Nom du modèle (auto-détecté si vide) | _(auto)_ |
+| `LT_TARGET` | URL du serveur LanguageTool | `http://localhost:3002` |
+
+## Variables avancées
+
+| Variable | Description | Valeur par défaut |
+|----------|-------------|-------------------|
+| `LLM_DISABLE_THINKING` | Désactive le mode "thinking" (vLLM/Qwen3) | `true` |
+| `CORS_ORIGIN` | Origines CORS autorisées, séparées par virgules | _(localhost toujours autorisé)_ |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | Endpoint OTLP pour traces OpenTelemetry | _(désactivé si absent)_ |
+
+## Exemple `.env`
+
+```env
+# Serveur
+PORT=25000
+
+# LLM (ici Ollama local)
+LLM_TARGET=http://localhost:11434
+# LLM_API_KEY=sk-...
+# LLM_MODEL_NAME=llama3
+
+# Désactiver le thinking (true pour vLLM/Qwen3, false pour OpenAI/Groq)
+LLM_DISABLE_THINKING=true
+
+# LanguageTool
+LT_TARGET=http://localhost:3002
+
+# Télémétrie (optionnel)
+# OTEL_EXPORTER_OTLP_ENDPOINT=http://phoenix:6006
+```
+
+## Fournisseurs LLM compatibles
+
+AI Corrector utilise l'API OpenAI (`/v1/chat/completions`). Tout serveur compatible fonctionne :
+
+| Fournisseur | `LLM_TARGET` | `LLM_API_KEY` |
+|-------------|--------------|----------------|
+| Ollama | `http://localhost:11434` | _(vide)_ |
+| vLLM | `http://localhost:30000` | _(vide ou token)_ |
+| OpenAI | `https://api.openai.com` | `sk-...` |
+| Groq | `https://api.groq.com/openai` | `gsk_...` |
+| Mistral | `https://api.mistral.ai` | _(clé Mistral)_ |

@@ -1,0 +1,53 @@
+---
+title: "Télémétrie"
+description: "Tracing OpenTelemetry via OTLP — spans LLM exportés vers Phoenix ou Jaeger."
+---
+
+AI Corrector instrumente les appels LLM avec OpenTelemetry. Si `OTEL_EXPORTER_OTLP_ENDPOINT` est défini au démarrage, les traces sont exportées vers le collecteur OTLP configuré.
+
+## Activation
+
+```env
+OTEL_EXPORTER_OTLP_ENDPOINT=http://phoenix:6006
+```
+
+Sans cette variable, la télémétrie est désactivée (message au démarrage : `[otel] OTEL_EXPORTER_OTLP_ENDPOINT not set — tracing disabled`).
+
+## Attributs tracés
+
+Chaque appel LLM crée un span `llm.chat` avec les attributs :
+
+| Attribut | Valeur |
+|----------|--------|
+| `openinference.span.kind` | `LLM` |
+| `llm.model_name` | Modèle résolu (`LLM_MODEL_NAME` ou auto-détecté) |
+| `input.value` | Messages JSON envoyés au LLM |
+| `input.text` | Texte utilisateur (tronqué à 2000 chars) |
+| `correction.mode` | Mode de correction (`formel`, `technique`…) |
+| `output.text` | Texte corrigé (tronqué à 2000 chars) |
+| `output.value` | Réponse JSON brute du LLM |
+
+## Compatibilité
+
+Tout backend supportant OTLP proto fonctionne :
+
+- **[Arize Phoenix](https://phoenix.arize.com)** — tableau de bord LLM observability (recommandé)
+- **Jaeger** : `OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318`
+- **Grafana Tempo**, **Honeycomb**, **Datadog**…
+
+## Exemple avec Phoenix (Docker)
+
+```yaml
+services:
+  phoenix:
+    image: arizephoenix/phoenix:latest
+    ports:
+      - "6006:6006"
+    restart: unless-stopped
+
+  ai-corrector:
+    image: ghcr.io/willisback/ai_corrector:latest
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://phoenix:6006"
+      # ... autres variables
+```
