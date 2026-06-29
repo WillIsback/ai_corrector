@@ -28,10 +28,11 @@ def compute_rouge_l(hypothesis: str, reference: str) -> float:
     return scorer.score(reference, hypothesis)["rougeL"].fmeasure
 
 
-def call_lt(text: str, port: int = 8010) -> str:
+def call_lt(text: str, port: int = 8010, base_url: str | None = None) -> str:
     """Appelle LanguageTool et retourne le texte avec corrections appliquées."""
+    url = f"{base_url}/v2/check" if base_url else f"http://localhost:{port}/api/lt/v2/check"
     response = requests.post(
-        f"http://localhost:{port}/api/lt/v2/check",
+        url,
         data={"text": text, "language": "fr"},
         timeout=10,
     )
@@ -63,10 +64,11 @@ SYSTEM_PROMPT = (
 )
 
 
-def call_llm(text: str, port: int = 1234) -> str:
+def call_llm(text: str, port: int = 1234, base_url: str | None = None, api_key: str = "no-key-needed") -> str:
     """Appelle le serveur LLM via SSE et retourne le texte corrigé."""
+    url = f"{base_url}/chat/completions" if base_url else f"http://localhost:{port}/v1/chat/completions"
     response = requests.post(
-        f"http://localhost:{port}/v1/chat/completions",
+        url,
         json={
             "messages": [
                 {"role": "system", "content": SYSTEM_PROMPT},
@@ -74,9 +76,9 @@ def call_llm(text: str, port: int = 1234) -> str:
             ],
             "temperature": 0.3,
         },
-        headers={"Authorization": "Bearer no-key-needed"},
+        headers={"Authorization": f"Bearer {api_key}"},
         stream=True,
-        timeout=30,
+        timeout=60,
     )
     response.raise_for_status()
 
@@ -98,6 +100,10 @@ LT_PORT = int(os.environ.get("LT_PORT", 8010))
 LLM_SAMPLE = int(os.environ.get("LLM_SAMPLE", 200))
 LT_SAMPLE = int(os.environ.get("LT_SAMPLE", 1000))
 SEED = 42
+LT_BASE_URL = os.environ.get("LT_BASE_URL", "")
+LLM_BASE_URL = os.environ.get("LLM_BASE_URL", "")
+LLM_API_KEY = os.environ.get("LLM_API_KEY", "no-key-needed")
+PHOENIX_ENDPOINT = os.environ.get("PHOENIX_ENDPOINT", "http://localhost:6006")
 
 
 def load_eval_dataset(n: int, seed: int = SEED) -> pd.DataFrame:
@@ -112,7 +118,7 @@ def run_phoenix_eval() -> None:
     import phoenix as px
     from phoenix.experiments import run_experiment
 
-    client = px.Client()
+    client = px.Client(endpoint=PHOENIX_ENDPOINT)
 
     def bleu_eval(output: str, expected: dict) -> float:
         return compute_bleu(output or "", expected["reference"])
@@ -136,7 +142,12 @@ def run_phoenix_eval() -> None:
     )
 
     def llm_task(example: dict) -> str:
-        return call_llm(example["input"]["input"], port=LLM_PORT)
+        return call_llm(
+            example["input"]["input"],
+            port=LLM_PORT,
+            base_url=LLM_BASE_URL or None,
+            api_key=LLM_API_KEY,
+        )
 
     print(f"Lancement évaluation LLM...")
     run_experiment(
@@ -162,7 +173,11 @@ def run_phoenix_eval() -> None:
     )
 
     def lt_task(example: dict) -> str:
-        return call_lt(example["input"]["input"], port=LT_PORT)
+        return call_lt(
+            example["input"]["input"],
+            port=LT_PORT,
+            base_url=LT_BASE_URL or None,
+        )
 
     print(f"Lancement évaluation LanguageTool...")
     run_experiment(
@@ -172,7 +187,7 @@ def run_phoenix_eval() -> None:
         experiment_name="lt-eval",
     )
 
-    print("Évaluation terminée. Ouvrir http://localhost:6006 pour voir les résultats.")
+    print(f"Évaluation terminée. Ouvrir {PHOENIX_ENDPOINT} pour voir les résultats.")
 
 
 if __name__ == "__main__":
