@@ -65,7 +65,7 @@ SYSTEM_PROMPT = (
 
 
 def call_llm(text: str, port: int = 1234, base_url: str | None = None, api_key: str = "no-key-needed") -> str:
-    """Appelle le serveur LLM via SSE et retourne le texte corrigé."""
+    """Appelle le serveur LLM via SSE (format OpenAI) et retourne le texte corrigé."""
     url = f"{base_url}/chat/completions" if base_url else f"http://localhost:{port}/v1/chat/completions"
     response = requests.post(
         url,
@@ -78,21 +78,45 @@ def call_llm(text: str, port: int = 1234, base_url: str | None = None, api_key: 
         },
         headers={"Authorization": f"Bearer {api_key}"},
         stream=True,
-        timeout=60,
+        timeout=120,
     )
     response.raise_for_status()
 
+    content_chunks: list[str] = []
     for line in response.iter_lines():
         if not line:
             continue
         decoded = line.decode("utf-8") if isinstance(line, bytes) else line
+        if decoded == "data: [DONE]":
+            break
         if not decoded.startswith("data: "):
             continue
-        payload = json.loads(decoded[6:])
-        if payload.get("text_done"):
+        try:
+            payload = json.loads(decoded[6:])
+        except json.JSONDecodeError:
+            continue
+        # Format OpenAI standard (vLLM/OpenAI)
+        choices = payload.get("choices", [])
+        if choices:
+            delta = choices[0].get("delta", {})
+            chunk = delta.get("content", "")
+            if chunk:
+                content_chunks.append(chunk)
+        # Format custom (serveur local ai-corrector)
+        elif payload.get("text_done"):
             return payload.get("text", "")
 
-    raise ValueError("LLM : aucun événement text_done reçu dans le stream SSE")
+    if not content_chunks:
+        raise ValueError("LLM : aucun contenu reçu dans le stream SSE")
+
+    # Le LLM retourne un JSON : {"texte_corrige": "..."}
+    raw = "".join(content_chunks).strip()
+    try:
+        data = json.loads(raw)
+        return data.get("texte_corrige", raw)
+    except json.JSONDecodeError:
+        # Si ce n'est pas du JSON valide, retourner le texte brut
+        return raw
 
 
 LLM_PORT = int(os.environ.get("LLM_PORT", 1234))

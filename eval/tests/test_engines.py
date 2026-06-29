@@ -82,4 +82,4 @@ def test_call_llm_raises_if_no_text_done():
             call_llm("texte.", port=1234)
             assert False, "devait lever ValueError"
         except ValueError as e:
-            assert "text_done" in str(e)
+            assert "contenu" in str(e) or "text_done" in str(e)
