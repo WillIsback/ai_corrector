@@ -115,16 +115,15 @@ def load_eval_dataset(n: int, seed: int = SEED) -> pd.DataFrame:
 
 
 def run_phoenix_eval() -> None:
-    import phoenix as px
-    from phoenix.experiments import run_experiment
+    from phoenix.client import Client
 
-    client = px.Client(endpoint=PHOENIX_ENDPOINT)
+    client = Client(base_url=PHOENIX_ENDPOINT)
 
     def bleu_eval(output: str, expected: dict) -> float:
-        return compute_bleu(output or "", expected["reference"])
+        return compute_bleu(output or "", expected.get("reference", ""))
 
     def rouge_eval(output: str, expected: dict) -> float:
-        return compute_rouge_l(output or "", expected["reference"])
+        return compute_rouge_l(output or "", expected.get("reference", ""))
 
     # --- LLM ---
     print(f"Chargement dataset LLM ({LLM_SAMPLE} exemples)...")
@@ -134,23 +133,23 @@ def run_phoenix_eval() -> None:
         "reference": llm_df["reference"],
         "category": llm_df["category"],
     })
-    llm_dataset = client.upload_dataset(
+    llm_dataset = client.datasets.create_dataset(
+        name="french-gec-llm",
         dataframe=llm_px_df,
         input_keys=["input", "category"],
         output_keys=["reference"],
-        dataset_name="french-gec-llm",
     )
 
-    def llm_task(example: dict) -> str:
+    def llm_task(input: dict) -> str:
         return call_llm(
-            example["input"]["input"],
+            input["input"],
             port=LLM_PORT,
             base_url=LLM_BASE_URL or None,
             api_key=LLM_API_KEY,
         )
 
-    print(f"Lancement évaluation LLM...")
-    run_experiment(
+    print("Lancement évaluation LLM...")
+    client.experiments.run_experiment(
         dataset=llm_dataset,
         task=llm_task,
         evaluators=[bleu_eval, rouge_eval],
@@ -165,22 +164,22 @@ def run_phoenix_eval() -> None:
         "reference": lt_df["reference"],
         "category": lt_df["category"],
     })
-    lt_dataset = client.upload_dataset(
+    lt_dataset = client.datasets.create_dataset(
+        name="french-gec-lt",
         dataframe=lt_px_df,
         input_keys=["input", "category"],
         output_keys=["reference"],
-        dataset_name="french-gec-lt",
     )
 
-    def lt_task(example: dict) -> str:
+    def lt_task(input: dict) -> str:
         return call_lt(
-            example["input"]["input"],
+            input["input"],
             port=LT_PORT,
             base_url=LT_BASE_URL or None,
         )
 
-    print(f"Lancement évaluation LanguageTool...")
-    run_experiment(
+    print("Lancement évaluation LanguageTool...")
+    client.experiments.run_experiment(
         dataset=lt_dataset,
         task=lt_task,
         evaluators=[bleu_eval, rouge_eval],
