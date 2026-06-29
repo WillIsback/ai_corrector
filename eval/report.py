@@ -125,6 +125,23 @@ def build_report(frames: list[pd.DataFrame], chart_filename: str, run_ts: str) -
     lines.append(f"# Rapport d'évaluation — Correction grammaticale (français)")
     lines.append(f"\n_Généré le {run_ts}_\n")
 
+    # Guide de lecture
+    lines.append("## Comment lire ce rapport\n")
+    lines.append(
+        "Les scores mesurent à quel point la sortie du moteur ressemble à la phrase de référence corrigée."
+        " Tous les scores sont compris entre **0.0** (aucune ressemblance) et **1.0** (correspondance parfaite).\n"
+    )
+    lines.append("| Métrique | Ce qu'elle mesure | Interprétation |")
+    lines.append("| -------- | ----------------- | -------------- |")
+    lines.append("| **BLEU** | Chevauchement de n-grammes (séquences de mots) entre sortie et référence | Sensible à l'ordre des mots et aux formulations exactes. Un score < 0.5 indique une reformulation importante ou de nombreuses erreurs résiduelles. |")
+    lines.append("| **ROUGE-L** | Plus longue sous-séquence commune (LCS) | Plus souple que BLEU, tolère les réordonnancements. Reflète mieux la couverture du contenu. |")
+    lines.append("| **Score** | Moyenne (BLEU + ROUGE-L) / 2 | Indicateur synthétique utilisé pour classer les exemples. |")
+    lines.append("")
+    lines.append(
+        "> **Seuils indicatifs :** ≥ 0.9 = correction quasi-parfaite · 0.7–0.9 = bonne correction avec variantes mineures"
+        " · 0.5–0.7 = corrections partielles ou style modifié · < 0.5 = erreurs résiduelles significatives ou sur-correction.\n"
+    )
+
     # Tableau global
     lines.append("## Tableau comparatif global\n")
     headers = ["Moteur", "N", "BLEU moy.", "ROUGE-L moy.", "BLEU min", "ROUGE-L min", "Score moy."]
