@@ -128,19 +128,36 @@ def build_report(frames: list[pd.DataFrame], chart_filename: str, run_ts: str) -
     # Guide de lecture
     lines.append("## Comment lire ce rapport\n")
     lines.append(
-        "Les scores mesurent à quel point la sortie du moteur ressemble à la phrase de référence corrigée."
-        " Tous les scores sont compris entre **0.0** (aucune ressemblance) et **1.0** (correspondance parfaite).\n"
+        "Tous les scores sont compris entre **0.0** (aucune ressemblance avec la référence)"
+        " et **1.0** (correspondance parfaite). Ils mesurent à quel point la sortie du moteur"
+        " reproduit fidèlement la phrase de référence corrigée.\n"
     )
-    lines.append("| Métrique | Ce qu'elle mesure | Interprétation |")
-    lines.append("| -------- | ----------------- | -------------- |")
-    lines.append("| **BLEU** | Chevauchement de n-grammes (séquences de mots) entre sortie et référence | Sensible à l'ordre des mots et aux formulations exactes. Un score < 0.5 indique une reformulation importante ou de nombreuses erreurs résiduelles. |")
-    lines.append("| **ROUGE-L** | Plus longue sous-séquence commune (LCS) | Plus souple que BLEU, tolère les réordonnancements. Reflète mieux la couverture du contenu. |")
-    lines.append("| **Score** | Moyenne (BLEU + ROUGE-L) / 2 | Indicateur synthétique utilisé pour classer les exemples. |")
-    lines.append("")
+    lines.append("### BLEU\n")
     lines.append(
-        "> **Seuils indicatifs :** ≥ 0.9 = correction quasi-parfaite · 0.7–0.9 = bonne correction avec variantes mineures"
-        " · 0.5–0.7 = corrections partielles ou style modifié · < 0.5 = erreurs résiduelles significatives ou sur-correction.\n"
+        "Mesure le **chevauchement de n-grammes** (séquences de 1 à 4 mots consécutifs) entre la sortie et la référence."
+        " Il est très sensible à l'ordre des mots et aux formulations exactes."
+        " Un moteur qui paraphrase ou reformule — même correctement — sera pénalisé si la référence ne le fait pas."
+        " Un score BLEU < 0.5 signale en général des erreurs résiduelles importantes ou une sur-correction stylistique.\n"
     )
+    lines.append("### ROUGE-L\n")
+    lines.append(
+        "Mesure la **plus longue sous-séquence commune** (LCS) entre la sortie et la référence."
+        " Plus souple que BLEU : il tolère les réordonnancements et les insertions mineures."
+        " ROUGE-L élevé avec BLEU faible indique un contenu globalement bien conservé mais avec des variantes de formulation.\n"
+    )
+    lines.append("### Score composite\n")
+    lines.append(
+        "Simple moyenne arithmétique **(BLEU + ROUGE-L) / 2**."
+        " Utilisé comme indicateur synthétique pour classer les exemples du meilleur au pire.\n"
+    )
+    lines.append("### Seuils indicatifs\n")
+    lines.append("| Score | Interprétation |")
+    lines.append("| ----- | -------------- |")
+    lines.append("| ≥ 0.90 | Correction quasi-parfaite, très proche de la référence |")
+    lines.append("| 0.70 – 0.89 | Bonne correction, variantes mineures de formulation |")
+    lines.append("| 0.50 – 0.69 | Correction partielle ou style modifié significativement |")
+    lines.append("| < 0.50 | Erreurs résiduelles importantes ou sur-correction |")
+    lines.append("")
 
     # Tableau global
     lines.append("## Tableau comparatif global\n")
