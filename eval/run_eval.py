@@ -89,22 +89,35 @@ def call_llm(text: str, port: int = 1234, base_url: str | None = None, api_key: 
         decoded = line.decode("utf-8") if isinstance(line, bytes) else line
         if decoded == "data: [DONE]":
             break
-        if not decoded.startswith("data: "):
-            continue
-        try:
-            payload = json.loads(decoded[6:])
-        except json.JSONDecodeError:
-            continue
-        # Format OpenAI standard (vLLM/OpenAI)
-        choices = payload.get("choices", [])
-        if choices:
-            delta = choices[0].get("delta", {})
-            chunk = delta.get("content", "")
-            if chunk:
-                content_chunks.append(chunk)
-        # Format custom (serveur local ai-corrector)
-        elif payload.get("text_done"):
-            return payload.get("text", "")
+        # Format SSE OpenAI standard (streaming)
+        if decoded.startswith("data: "):
+            try:
+                payload = json.loads(decoded[6:])
+            except json.JSONDecodeError:
+                continue
+            choices = payload.get("choices", [])
+            if choices:
+                delta = choices[0].get("delta", {})
+                chunk = delta.get("content", "")
+                if chunk:
+                    content_chunks.append(chunk)
+            # Format custom (serveur local ai-corrector)
+            elif payload.get("text_done"):
+                return payload.get("text", "")
+        else:
+            # Format non-streaming : réponse JSON complète sur une seule ligne
+            try:
+                payload = json.loads(decoded)
+            except json.JSONDecodeError:
+                continue
+            choices = payload.get("choices", [])
+            if choices:
+                # Réponse non-streaming : choices[0].message.content
+                msg = choices[0].get("message", {})
+                content = msg.get("content", "")
+                if content:
+                    content_chunks.append(content)
+                    break
 
     if not content_chunks:
         raise ValueError("LLM : aucun contenu reçu dans le stream SSE")
