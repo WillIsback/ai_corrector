@@ -30,9 +30,11 @@ temp/
 *.tmp
 .worktrees/
 
-# Python venvs
+# Python
 .venv/
 evals/.venv/
+__pycache__/
+*.pyc
 
 # Données utilisateur (générées au runtime)
 public/data/valid-words.json
