@@ -50,3 +50,36 @@ def test_call_lt_applies_multiple_corrections_in_order():
     )
     result = call_lt("les chtas mangent.", port=8010)
     assert result == "Les chats mangent."
+
+
+from unittest.mock import patch, MagicMock
+from run_eval import call_llm
+
+
+def test_call_llm_extracts_corrected_text():
+    mock_response = MagicMock()
+    mock_response.raise_for_status = MagicMock()
+    mock_response.iter_lines.return_value = iter([
+        b'data: {"text_done": true, "text": "les chats mangent.", "duration": 1.2}',
+        b'data: {"done": true, "corrections": []}',
+    ])
+
+    with patch("requests.post", return_value=mock_response):
+        result = call_llm("les chtas mangent.", port=1234)
+
+    assert result == "les chats mangent."
+
+
+def test_call_llm_raises_if_no_text_done():
+    mock_response = MagicMock()
+    mock_response.raise_for_status = MagicMock()
+    mock_response.iter_lines.return_value = iter([
+        b'data: {"done": true, "corrections": []}',
+    ])
+
+    with patch("requests.post", return_value=mock_response):
+        try:
+            call_llm("texte.", port=1234)
+            assert False, "devait lever ValueError"
+        except ValueError as e:
+            assert "text_done" in str(e)

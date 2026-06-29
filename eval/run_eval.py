@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import Tuple
+import json
 
 import requests
 import sacrebleu
@@ -46,3 +47,44 @@ def call_lt(text: str, port: int = 8010) -> str:
         result = result[:offset] + replacement + result[offset + length:]
 
     return result
+
+
+SYSTEM_PROMPT = (
+    "Tu es un correcteur editorial expert en francais. "
+    "Mode: Formel et professionnel. "
+    "Corrections actives: grammaire, orthographe, syntaxe, style. "
+    "Corrige UNIQUEMENT ce qui necessite une correction selon ces criteres. "
+    "Ne change pas le sens ni le style au-dela du mode demande. "
+    "Reponds UNIQUEMENT avec un objet JSON valide, sans markdown, sans texte avant ou apres:\n"
+    '{"texte_corrige": "le texte corrige complet"}'
+)
+
+
+def call_llm(text: str, port: int = 1234) -> str:
+    """Appelle le serveur LLM via SSE et retourne le texte corrigé."""
+    response = requests.post(
+        f"http://localhost:{port}/v1/chat/completions",
+        json={
+            "messages": [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": text},
+            ],
+            "temperature": 0.3,
+        },
+        headers={"Authorization": "Bearer no-key-needed"},
+        stream=True,
+        timeout=30,
+    )
+    response.raise_for_status()
+
+    for line in response.iter_lines():
+        if not line:
+            continue
+        decoded = line.decode("utf-8") if isinstance(line, bytes) else line
+        if not decoded.startswith("data: "):
+            continue
+        payload = json.loads(decoded[6:])
+        if payload.get("text_done"):
+            return payload.get("text", "")
+
+    raise ValueError("LLM : aucun événement text_done reçu dans le stream SSE")
