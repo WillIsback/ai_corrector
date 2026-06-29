@@ -1,9 +1,12 @@
 from __future__ import annotations
 from typing import Tuple
 import json
+import os
 
+import pandas as pd
 import requests
 import sacrebleu
+from datasets import load_dataset as hf_load_dataset
 from rouge_score import rouge_scorer as _rouge_lib
 
 
@@ -88,3 +91,89 @@ def call_llm(text: str, port: int = 1234) -> str:
             return payload.get("text", "")
 
     raise ValueError("LLM : aucun événement text_done reçu dans le stream SSE")
+
+
+LLM_PORT = int(os.environ.get("LLM_PORT", 1234))
+LT_PORT = int(os.environ.get("LT_PORT", 8010))
+LLM_SAMPLE = int(os.environ.get("LLM_SAMPLE", 200))
+LT_SAMPLE = int(os.environ.get("LT_SAMPLE", 1000))
+SEED = 42
+
+
+def load_eval_dataset(n: int, seed: int = SEED) -> pd.DataFrame:
+    """Charge N exemples parsés depuis fdemelo/spelling-correction-french-news."""
+    ds = hf_load_dataset("fdemelo/spelling-correction-french-news", split="train")
+    df = ds.to_pandas().sample(n=n, random_state=seed).reset_index(drop=True)
+    rows = [parse_row(row) for _, row in df.iterrows()]
+    return pd.DataFrame(rows, columns=["category", "erroneous", "reference"])
+
+
+def run_phoenix_eval() -> None:
+    import phoenix as px
+    from phoenix.experiments import run_experiment
+
+    client = px.Client()
+
+    def bleu_eval(output: str, expected: dict) -> float:
+        return compute_bleu(output or "", expected["reference"])
+
+    def rouge_eval(output: str, expected: dict) -> float:
+        return compute_rouge_l(output or "", expected["reference"])
+
+    # --- LLM ---
+    print(f"Chargement dataset LLM ({LLM_SAMPLE} exemples)...")
+    llm_df = load_eval_dataset(LLM_SAMPLE)
+    llm_px_df = pd.DataFrame({
+        "input": llm_df["erroneous"],
+        "reference": llm_df["reference"],
+        "category": llm_df["category"],
+    })
+    llm_dataset = client.upload_dataset(
+        dataframe=llm_px_df,
+        input_keys=["input", "category"],
+        output_keys=["reference"],
+        dataset_name="french-gec-llm",
+    )
+
+    def llm_task(example: dict) -> str:
+        return call_llm(example["input"]["input"], port=LLM_PORT)
+
+    print(f"Lancement évaluation LLM...")
+    run_experiment(
+        dataset=llm_dataset,
+        task=llm_task,
+        evaluators=[bleu_eval, rouge_eval],
+        experiment_name="llm-eval",
+    )
+
+    # --- LanguageTool ---
+    print(f"Chargement dataset LT ({LT_SAMPLE} exemples)...")
+    lt_df = load_eval_dataset(LT_SAMPLE)
+    lt_px_df = pd.DataFrame({
+        "input": lt_df["erroneous"],
+        "reference": lt_df["reference"],
+        "category": lt_df["category"],
+    })
+    lt_dataset = client.upload_dataset(
+        dataframe=lt_px_df,
+        input_keys=["input", "category"],
+        output_keys=["reference"],
+        dataset_name="french-gec-lt",
+    )
+
+    def lt_task(example: dict) -> str:
+        return call_lt(example["input"]["input"], port=LT_PORT)
+
+    print(f"Lancement évaluation LanguageTool...")
+    run_experiment(
+        dataset=lt_dataset,
+        task=lt_task,
+        evaluators=[bleu_eval, rouge_eval],
+        experiment_name="lt-eval",
+    )
+
+    print("Évaluation terminée. Ouvrir http://localhost:6006 pour voir les résultats.")
+
+
+if __name__ == "__main__":
+    run_phoenix_eval()
