@@ -143,8 +143,6 @@ Bun.serve({
     if (path === "/v1/chat/completions" && req.method === "POST") {
       console.log("[LLM] Chat completion via SDK");
       const startTime = Date.now();
-      // E2E-DEV-TEST (reversible test fault — remove after validation):
-      throw new Error("E2E-DEV-TEST forced handler failure");
 
       const span = tracer.startSpan("llm.chat", {
         kind: SpanKind.CLIENT,
