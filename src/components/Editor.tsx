@@ -11,7 +11,7 @@ export function Editor({ text, onChange, onCorrect, isLoading }: Props) {
   return (
     <div className="flex-1 flex flex-col min-w-0">
       <div className="flex-1 p-6 overflow-y-auto">
-        <div className="max-w-2xl mx-auto h-full flex flex-col">
+        <div className="max-w-2xl mx-auto flex flex-col">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
@@ -28,17 +28,17 @@ export function Editor({ text, onChange, onCorrect, isLoading }: Props) {
             )}
           </div>
 
-          <div className="flex-1 relative group">
+          <div className="relative group">
             <textarea
               value={text}
               onChange={(e) => onChange(e.target.value)}
               placeholder="Collez votre texte ici pour le corriger..."
-              className="w-full h-full min-h-[320px] p-5 bg-white dark:bg-gray-800/80
+              className="w-full min-h-[200px] max-h-[50vh] p-5 bg-white dark:bg-gray-800/80
                 border border-gray-200/80 dark:border-gray-700/80
                 rounded-2xl shadow-subtle
                 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-300 dark:focus:border-brand-600
                 text-gray-900 dark:text-white placeholder-gray-300 dark:placeholder-gray-600
-                resize-none text-[15px] leading-relaxed font-normal
+                resize-y text-[15px] leading-relaxed font-normal
                 transition-all duration-200"
               spellCheck={false}
             />

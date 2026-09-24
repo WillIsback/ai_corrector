@@ -86,6 +86,7 @@ export async function correctText(
         const payload = JSON.parse(line.slice(6));
 
         if (payload.error) throw new Error(payload.error);
+        if (payload.heartbeat) continue;
 
         if (payload.text_done) {
           callbacks?.onTextDone?.(payload.text ?? "", payload.duration ?? 0);

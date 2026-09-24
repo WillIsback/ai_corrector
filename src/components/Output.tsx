@@ -27,7 +27,7 @@ export function Output({
   return (
     <div className="flex-1 flex flex-col min-w-0 border-l border-gray-200/50 dark:border-gray-700/50">
       <div className="flex-1 p-6 overflow-y-auto">
-        <div className="max-w-2xl mx-auto h-full flex flex-col">
+        <div className="max-w-2xl mx-auto flex flex-col">
           <div className="mb-4">
             <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
               Résultat corrigé
@@ -38,7 +38,7 @@ export function Output({
           </div>
 
           <div
-            className="flex-1 min-h-[320px] bg-surface-50 dark:bg-gray-800/50 p-5 rounded-2xl
+            className="min-h-[200px] max-h-[50vh] overflow-y-auto bg-surface-50 dark:bg-gray-800/50 p-5 rounded-2xl
               border border-gray-200/60 dark:border-gray-700/60 shadow-subtle"
           >
             {outputText ? (

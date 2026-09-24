@@ -7,4 +7,7 @@ export const config = {
   llmDisableThinking: process.env.LLM_DISABLE_THINKING !== "false",
   corsOrigins: (process.env.CORS_ORIGIN ?? "").split(",").filter(Boolean),
   otelEndpoint: process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? "",
+  albertApiUrl: process.env.ALBERT_API_URL ?? "",
+  albertApiKey: process.env.ALBERT_API_KEY ?? "",
+  albertModelName: process.env.ALBERT_MODEL_NAME ?? "deepseek-v4-flash",
 };

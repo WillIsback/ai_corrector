@@ -18,6 +18,14 @@ const llmClient = new OpenAI({
   apiKey: config.llmApiKey || "unused",
 });
 
+const albertClient =
+  config.albertApiUrl && config.albertApiKey
+    ? new OpenAI({
+        baseURL: `${config.albertApiUrl}/v1`,
+        apiKey: config.albertApiKey,
+      })
+    : null;
+
 function getCorsHeaders(req: Request): Headers {
   const origin = req.headers.get("Origin") ?? "";
   const isLocalhost = origin.includes("localhost") || origin.includes("127.0.0.1");
@@ -135,6 +143,8 @@ Bun.serve({
     if (path === "/v1/chat/completions" && req.method === "POST") {
       console.log("[LLM] Chat completion via SDK");
       const startTime = Date.now();
+      // E2E-DEV-TEST (reversible test fault — remove after validation):
+      throw new Error("E2E-DEV-TEST forced handler failure");
 
       const span = tracer.startSpan("llm.chat", {
         kind: SpanKind.CLIENT,
@@ -163,17 +173,45 @@ Bun.serve({
           "correction.mode": correctionMode,
         });
 
-        const extraParams = config.llmDisableThinking
-          ? { chat_template_kwargs: { enable_thinking: false } }
-          : {};
-
-        const createParams = { ...llmBody, model: resolvedModel, stream: true, ...extraParams };
-        // biome-ignore lint/suspicious/noExplicitAny: OpenAI SDK requires escape hatch for spread params
-        const stream = (await llmClient.chat.completions.create(
-          createParams as any,
-        )) as unknown as AsyncIterable<{
+        // Tenter le modèle primaire (DGX), fallback sur Albert si indisponible
+        let stream: AsyncIterable<{
           choices?: Array<{ delta?: { content?: string } }>;
         }>;
+        let usedModel = resolvedModel;
+        let usedFallback = false;
+
+        try {
+          const extraParams = config.llmDisableThinking
+            ? { chat_template_kwargs: { enable_thinking: false } }
+            : {};
+          const createParams = { ...llmBody, model: resolvedModel, stream: true, ...extraParams };
+          // biome-ignore lint/suspicious/noExplicitAny: OpenAI SDK requires escape hatch for spread params
+          stream = (await llmClient.chat.completions.create(
+            createParams as any,
+          )) as unknown as typeof stream;
+        } catch (primaryError) {
+          if (!albertClient) throw primaryError;
+
+          console.warn(
+            `[LLM] Modèle primaire indisponible, fallback Albert (${config.albertModelName}):`,
+            primaryError instanceof Error ? primaryError.message : primaryError,
+          );
+
+          usedModel = config.albertModelName;
+          usedFallback = true;
+          span.setAttribute("llm.fallback", true);
+          span.setAttribute("llm.model_name", usedModel);
+
+          const albertParams = { ...llmBody, model: usedModel, stream: true };
+          // biome-ignore lint/suspicious/noExplicitAny: OpenAI SDK requires escape hatch for spread params
+          stream = (await albertClient.chat.completions.create(
+            albertParams as any,
+          )) as unknown as typeof stream;
+        }
+
+        if (usedFallback) {
+          console.log(`[LLM] Utilisation du fallback Albert: ${usedModel}`);
+        }
 
         const encoder = new TextEncoder();
         // Regex to detect when texte_corrige is complete (closing quote present)
@@ -183,6 +221,7 @@ Bun.serve({
           async start(controller) {
             let fullContent = "";
             let textDoneSent = false;
+            let lastHeartbeat = Date.now();
 
             try {
               for await (const chunk of stream) {
@@ -204,9 +243,16 @@ Bun.serve({
                       ),
                     );
                     textDoneSent = true;
+                    lastHeartbeat = Date.now();
+                  }
+                } else {
+                  // Send heartbeat every 5s to keep SSE connection alive
+                  const now = Date.now();
+                  if (now - lastHeartbeat >= 5000) {
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ heartbeat: true })}\n\n`));
+                    lastHeartbeat = now;
                   }
                 }
-                // After text_done: silently accumulate remaining JSON for corrections
               }
 
               // Parse complete JSON for corrections
@@ -221,7 +267,9 @@ Bun.serve({
                 outputText = fullContent;
               }
 
-              console.log(`[LLM] Stream terminé en ${totalDuration}ms`);
+              console.log(
+                `[LLM] Stream terminé en ${totalDuration}ms${usedFallback ? " (fallback Albert)" : ""}`,
+              );
               span.setAttributes({
                 "output.text": outputText.slice(0, 2000),
                 "output.value": fullContent.slice(0, 2000),
@@ -274,27 +322,46 @@ Bun.serve({
     // === API: LLM Proxy (fallback for other LLM routes) ===
     if (path.startsWith("/v1/")) {
       const llmPath = path;
-      const llmUrl = `${config.llmTarget}${llmPath}${url.search}`;
+      const reqBody =
+        req.method !== "GET" && req.method !== "HEAD" ? await req.arrayBuffer() : null;
 
-      try {
-        // Override Authorization with the real LLM API key (frontend sends a placeholder)
+      const tryFetch = async (baseUrl: string, apiKey: string) => {
+        const targetUrl = `${baseUrl}${llmPath}${url.search}`;
         const proxyHeaders = new Headers(req.headers);
-        if (config.llmApiKey) proxyHeaders.set("Authorization", `Bearer ${config.llmApiKey}`);
-
-        const llmResponse = await fetch(llmUrl, {
+        if (apiKey) proxyHeaders.set("Authorization", `Bearer ${apiKey}`);
+        proxyHeaders.delete("Accept-Encoding");
+        proxyHeaders.delete("Host");
+        return fetch(targetUrl, {
           method: req.method,
           headers: proxyHeaders,
-          body: req.method !== "GET" && req.method !== "HEAD" ? req.body : undefined,
+          body: reqBody,
           redirect: "follow",
         });
+      };
 
-        const responseHeaders = new Headers(llmResponse.headers);
+      try {
+        let llmResponse: Response;
+        try {
+          llmResponse = await tryFetch(config.llmTarget, config.llmApiKey);
+        } catch {
+          if (!config.albertApiUrl || !config.albertApiKey) throw new Error("LLM unavailable");
+          console.warn(`[LLM Proxy] Primaire indisponible pour ${llmPath}, fallback Albert`);
+          llmResponse = await tryFetch(config.albertApiUrl, config.albertApiKey);
+        }
+
+        // Re-read body as text to avoid gzip passthrough issues
+        const responseBody = await llmResponse.text();
+        const responseHeaders = new Headers();
+        responseHeaders.set(
+          "Content-Type",
+          llmResponse.headers.get("Content-Type") ?? "application/json",
+        );
         const origin = req.headers.get("Origin") ?? "";
         const isLocalhost = origin.includes("localhost") || origin.includes("127.0.0.1");
         const allowed = isLocalhost || config.corsOrigins.some((o) => origin === o);
         responseHeaders.set("Access-Control-Allow-Origin", allowed ? origin : "");
 
-        return new Response(llmResponse.body, {
+        return new Response(responseBody, {
           status: llmResponse.status,
           headers: responseHeaders,
         });
