@@ -16,11 +16,17 @@ import { describe, expect, it } from "vitest";
 
 const serverSource = readFileSync(join(import.meta.dirname, "../../server.ts"), "utf-8");
 
+/** Placeholder text inside the baseURL template, split so biome's
+ * noTemplateCurlyInString doesn't flag it as an accidental template string. */
+const TARGET_PLACEHOLDER = "$" + "{config.llmTarget}";
+
 /** Extracts the baseURL template literal from the OpenAI client construction. */
 function llmClientBaseUrlTemplate(): string {
   const clientStart = serverSource.indexOf("new OpenAI({");
   expect(clientStart, "OpenAI client construction must exist in server.ts").toBeGreaterThan(-1);
-  const baseMatch = serverSource.slice(clientStart, clientStart + 500).match(/baseURL:\s*`([^`]+)`/);
+  const baseMatch = serverSource
+    .slice(clientStart, clientStart + 500)
+    .match(/baseURL:\s*`([^`]+)`/);
   expect(baseMatch, "OpenAI client must set baseURL via a template literal").not.toBeNull();
   return baseMatch[1];
 }
@@ -33,14 +39,14 @@ describe("OpenAI SDK client baseURL (issue #4)", () => {
 
   it("appends exactly one /v1 to config.llmTarget", () => {
     const template = llmClientBaseUrlTemplate();
-    expect(template).toBe("${config.llmTarget}/v1");
+    expect(template).toBe(`${TARGET_PLACEHOLDER}/v1`);
   });
 
   it("resolves to <LLM_TARGET>/v1/chat/completions for the deployed env", () => {
     // Simulate the SDK: baseURL + "/chat/completions" with the real deployed
     // LLM_TARGET (host root, no trailing slash, per stacks/ai/docker-compose.yml).
     const llmTarget = "http://192.168.1.87:30000";
-    const baseURL = llmClientBaseUrlTemplate().replace("${config.llmTarget}", llmTarget);
+    const baseURL = llmClientBaseUrlTemplate().split(TARGET_PLACEHOLDER).join(llmTarget);
     const endpoint = `${baseURL}/chat/completions`;
     expect(endpoint).toBe("http://192.168.1.87:30000/v1/chat/completions");
   });
