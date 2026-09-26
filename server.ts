@@ -146,7 +146,7 @@ Bun.serve({
 
         // Extraire les métadonnées de correction (non transmises à vLLM)
         const correctionMode: string = body.correction_mode ?? "unknown";
-        const { correction_mode: _mode, ...llmBody } = body;
+        const { correction_mode: _mode, messages: _messages, ...llmBody } = body;
 
         // Extraire le texte d'entrée depuis le dernier message user
         const messages: Array<{ role: string; content: string }> = llmBody.messages ?? [];
