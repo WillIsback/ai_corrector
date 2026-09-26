@@ -14,7 +14,7 @@ const DIST_DIR = join(import.meta.dir, "dist");
 const VALID_WORDS_PATH = join(import.meta.dir, "public", "data", "valid-words.json");
 
 const llmClient = new OpenAI({
-  baseURL: `${config.llmTarget}/v1/completions-api`,
+  baseURL: `${config.llmTarget}/v1`,
   apiKey: config.llmApiKey || "unused",
 });
 
