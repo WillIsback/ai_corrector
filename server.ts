@@ -183,8 +183,24 @@ Bun.serve({
           async start(controller) {
             let fullContent = "";
             let textDoneSent = false;
+            const keepaliveIntervalMs = 15_000;
+            let keepaliveId: ReturnType<typeof setInterval> | null = null;
+
+            function startKeepalive(): void {
+              keepaliveId = setInterval(() => {
+                controller.enqueue(encoder.encode(": keepalive\n\n"));
+              }, keepaliveIntervalMs);
+            }
+
+            function stopKeepalive(): void {
+              if (keepaliveId) {
+                clearInterval(keepaliveId);
+                keepaliveId = null;
+              }
+            }
 
             try {
+              startKeepalive();
               for await (const chunk of stream) {
                 const delta: string = chunk.choices?.[0]?.delta?.content ?? "";
                 if (!delta) continue;
@@ -240,6 +256,7 @@ Bun.serve({
                 encoder.encode(`data: ${JSON.stringify({ error: String(err) })}\n\n`),
               );
             } finally {
+              stopKeepalive();
               controller.close();
             }
           },
