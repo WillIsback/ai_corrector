@@ -47,4 +47,17 @@ describe("config", () => {
     const { config } = await import("../../config");
     expect(config.otelEndpoint).toBe("");
   });
+
+  it("llmTopK defaults to -1 (SGLang disabled) — not 0 (issue #12)", async () => {
+    // SGLang rejects top_k=0 with 400 "top_k must be -1 (disable) or at least 1".
+    // A default of 0 broke every chat completion in v1.5.9 (issue #12).
+    const { config } = await import("../../config");
+    expect(config.llmTopK).toBe(-1);
+  });
+
+  it("llmTopK reads a valid override from LLM_TOP_K", async () => {
+    vi.stubEnv("LLM_TOP_K", "5");
+    const { config } = await import("../../config");
+    expect(config.llmTopK).toBe(5);
+  });
 });
