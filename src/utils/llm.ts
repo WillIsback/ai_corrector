@@ -52,7 +52,15 @@ export async function correctText(
   const controller = new AbortController();
   currentAbortController = controller;
 
-  const timeoutId = setTimeout(() => controller.abort(), 30000);
+  const streamTimeoutMs = 120_000;
+  let streamTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  function clearStreamTimeout(): void {
+    if (streamTimeoutId) {
+      clearTimeout(streamTimeoutId);
+      streamTimeoutId = null;
+    }
+  }
 
   try {
     const response = await fetch("/v1/chat/completions", {
@@ -62,11 +70,10 @@ export async function correctText(
       signal: controller.signal,
     });
 
-    clearTimeout(timeoutId);
-    currentAbortController = null;
-
     if (!response.ok) throw new Error(`API error: ${response.status}`);
     if (!response.body) throw new Error("No response body");
+
+    streamTimeoutId = setTimeout(() => controller.abort(), streamTimeoutMs);
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
@@ -88,10 +95,12 @@ export async function correctText(
         if (payload.error) throw new Error(payload.error);
 
         if (payload.text_done) {
+          clearStreamTimeout();
           callbacks?.onTextDone?.(payload.text ?? "", payload.duration ?? 0);
         }
 
         if (payload.done) {
+          clearStreamTimeout();
           return parseCorrections(Array.isArray(payload.corrections) ? payload.corrections : []);
         }
       }
