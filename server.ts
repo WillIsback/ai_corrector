@@ -167,7 +167,13 @@ Bun.serve({
           ? { chat_template_kwargs: { enable_thinking: false } }
           : {};
 
-        const createParams = { ...llmBody, model: resolvedModel, stream: true, ...extraParams };
+        const createParams = {
+          ...llmBody,
+          model: resolvedModel,
+          stream: true,
+          top_k: config.llmTopK,
+          ...extraParams,
+        };
         // biome-ignore lint/suspicious/noExplicitAny: OpenAI SDK requires escape hatch for spread params
         const stream = (await llmClient.chat.completions.create(
           createParams as any,
