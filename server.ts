@@ -6,6 +6,7 @@ import { join, resolve } from "node:path";
 import { SpanKind, SpanStatusCode, trace } from "@opentelemetry/api";
 import OpenAI from "openai";
 import { config } from "./config.ts";
+import { isStreamTeardownError } from "./src/utils/streamErrors.ts";
 
 const tracer = trace.getTracer("ai-corrector");
 
@@ -207,28 +208,43 @@ Bun.serve({
 
             try {
               startKeepalive();
-              for await (const chunk of stream) {
-                const delta: string = chunk.choices?.[0]?.delta?.content ?? "";
-                if (!delta) continue;
-                fullContent += delta;
+              try {
+                for await (const chunk of stream) {
+                  const delta: string = chunk.choices?.[0]?.delta?.content ?? "";
+                  if (!delta) continue;
+                  fullContent += delta;
 
-                if (!textDoneSent) {
-                  const fullMatch = reFull.exec(fullContent);
-                  if (fullMatch) {
-                    const extracted = fullMatch[1]
-                      .replace(/\\n/g, "\n")
-                      .replace(/\\"/g, '"')
-                      .replace(/\\\\/g, "\\");
-                    const textDuration = Date.now() - startTime;
-                    controller.enqueue(
-                      encoder.encode(
-                        `data: ${JSON.stringify({ text_done: true, text: extracted, duration: textDuration })}\n\n`,
-                      ),
-                    );
-                    textDoneSent = true;
+                  if (!textDoneSent) {
+                    const fullMatch = reFull.exec(fullContent);
+                    if (fullMatch) {
+                      const extracted = fullMatch[1]
+                        .replace(/\\n/g, "\n")
+                        .replace(/\\"/g, '"')
+                        .replace(/\\\\/g, "\\");
+                      const textDuration = Date.now() - startTime;
+                      controller.enqueue(
+                        encoder.encode(
+                          `data: ${JSON.stringify({ text_done: true, text: extracted, duration: textDuration })}\n\n`,
+                        ),
+                      );
+                      textDoneSent = true;
+                    }
                   }
+                  // After text_done: silently accumulate remaining JSON for corrections
                 }
-                // After text_done: silently accumulate remaining JSON for corrections
+              } catch (loopErr) {
+                // Issue #14: at the end of a successful stream, Bun/Node can
+                // double-close the response-body ReadableStream controller and
+                // surface "Controller is already closed" from the SDK iterator.
+                // The stream has already delivered all its data (fullContent is
+                // complete), so fall through to the normal parse + `done` event
+                // instead of turning a completed ~12s stream into an error. Any
+                // other error is rethrown to the outer catch (→ SSE error event).
+                if (isStreamTeardownError(loopErr)) {
+                  console.warn(`[LLM] Stream teardown race ignored: ${String(loopErr)}`);
+                } else {
+                  throw loopErr;
+                }
               }
 
               // Parse complete JSON for corrections
