@@ -10,9 +10,7 @@ import { isStreamTeardownError } from "../../src/utils/streamErrors";
 
 describe("isStreamTeardownError — stream close-race classifier (issue #14)", () => {
   it("detects the exact TypeError [ERR_INVALID_STATE] from the incident", () => {
-    const err = new TypeError(
-      "[ERR_INVALID_STATE]: Invalid state: Controller is already closed",
-    );
+    const err = new TypeError("[ERR_INVALID_STATE]: Invalid state: Controller is already closed");
     expect(isStreamTeardownError(err)).toBe(true);
   });
 
@@ -33,9 +31,7 @@ describe("isStreamTeardownError — stream close-race classifier (issue #14)", (
   it("does NOT treat a genuine LLM/network failure as a teardown race", () => {
     expect(isStreamTeardownError(new Error("API error: 500"))).toBe(false);
     expect(isStreamTeardownError(new Error("Failed to fetch"))).toBe(false);
-    expect(
-      isStreamTeardownError(new Error("Delai d'attente depasse")),
-    ).toBe(false);
+    expect(isStreamTeardownError(new Error("Delai d'attente depasse"))).toBe(false);
     // A different state error is not the controller-closed race.
     const other = new TypeError(
       "[ERR_INVALID_STATE]: Invalid state: The read source is already locked",
@@ -55,10 +51,7 @@ describe("server.ts — llm.chat stream loop guards the close-race (issue #14)",
   // server.ts runs under Bun (Bun.serve) and cannot be imported in the vitest
   // jsdom environment, so we guard at the source level that the guard is wired
   // into the handler (same technique as the issue #1 regression test).
-  const serverSource = readFileSync(
-    join(import.meta.dirname, "../../server.ts"),
-    "utf-8",
-  );
+  const serverSource = readFileSync(join(import.meta.dirname, "../../server.ts"), "utf-8");
 
   function handlerBody(): string {
     const start = serverSource.indexOf('path === "/v1/chat/completions"');
@@ -69,7 +62,9 @@ describe("server.ts — llm.chat stream loop guards the close-race (issue #14)",
   }
 
   it("imports and references isStreamTeardownError inside the chat handler", () => {
-    expect(serverSource).toMatch(/import\s*{[^}]*isStreamTeardownError[^}]*}\s*from\s*"\.\/src\/utils\/streamErrors/);
+    expect(serverSource).toMatch(
+      /import\s*{[^}]*isStreamTeardownError[^}]*}\s*from\s*"\.\/src\/utils\/streamErrors/,
+    );
     expect(handlerBody()).toMatch(/isStreamTeardownError\(/);
   });
 
