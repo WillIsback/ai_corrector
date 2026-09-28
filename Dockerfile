@@ -18,6 +18,7 @@ COPY --from=builder /app/public ./public
 
 # Copier les fichiers serveur
 COPY server.ts telemetry.ts config.ts package.json bun.lock ./
+COPY src/utils/streamErrors.ts ./src/utils/
 
 # Installer uniquement les dépendances de production
 RUN bun install --production --frozen-lockfile
