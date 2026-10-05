@@ -25,8 +25,8 @@ export function Output({
 }: Props) {
   const [correctionsOpen, setCorrectionsOpen] = useState(false);
   return (
-    <div className="flex-1 flex flex-col min-w-0 border-l border-gray-200/50 dark:border-gray-700/50">
-      <div className="flex-1 p-6 overflow-y-auto">
+    <div className="flex-1 flex flex-col min-w-0 md:border-l border-gray-200/60 dark:border-gray-800/60">
+      <div className="flex-1 p-4 sm:p-6 overflow-y-auto">
         <div className="max-w-2xl mx-auto h-full flex flex-col">
           <div className="mb-4">
             <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
@@ -38,7 +38,7 @@ export function Output({
           </div>
 
           <div
-            className="flex-1 min-h-[320px] bg-surface-50 dark:bg-gray-800/50 p-5 rounded-2xl
+            className="flex-1 min-h-[320px] lg:min-h-[420px] bg-white dark:bg-gray-800/50 p-5 rounded-2xl
               border border-gray-200/60 dark:border-gray-700/60 shadow-subtle"
           >
             {outputText ? (
@@ -47,10 +47,10 @@ export function Output({
               </p>
             ) : (
               <div className="h-full flex flex-col items-center justify-center text-center py-12">
-                <div className="w-14 h-14 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
+                <div className="w-16 h-16 rounded-2xl bg-brand-50 dark:bg-brand-500/10 flex items-center justify-center mb-4">
                   <svg
                     aria-hidden="true"
-                    className="w-6 h-6 text-gray-300 dark:text-gray-600"
+                    className="w-7 h-7 text-brand-400 dark:text-brand-500"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -61,7 +61,7 @@ export function Output({
                     <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                 </div>
-                <p className="text-sm text-gray-400 dark:text-gray-500 max-w-[200px]">
+                <p className="text-sm text-gray-400 dark:text-gray-500 max-w-[220px]">
                   Le texte corrigé apparaîtra ici
                 </p>
               </div>
@@ -217,7 +217,7 @@ export function Output({
                   </button>
                   {correctionsOpen && (
                     <div
-                      className="mt-2 bg-surface-50 dark:bg-gray-800/50 rounded-2xl border
+                      className="mt-2 bg-white dark:bg-gray-800/50 rounded-2xl border
                         border-gray-200/60 dark:border-gray-700/60 shadow-subtle divide-y
                         divide-gray-100 dark:divide-gray-700/60 overflow-hidden"
                     >
@@ -225,7 +225,8 @@ export function Output({
                         <div
                           // biome-ignore lint/suspicious/noArrayIndexKey: corrections list is static per render
                           key={i}
-                          className="grid grid-cols-[1fr_auto_1fr_1fr] items-center gap-2 px-4 py-2.5 text-[13px] min-w-0"
+                          className="flex flex-col gap-1 px-4 py-3 text-[13px] min-w-0
+                            sm:grid sm:grid-cols-[1fr_auto_1fr_1fr] sm:items-center sm:gap-2 sm:py-2.5"
                         >
                           <span
                             className="text-red-500 dark:text-red-400 line-through font-mono truncate"
@@ -233,7 +234,7 @@ export function Output({
                           >
                             {c.avant}
                           </span>
-                          <span className="text-gray-400 shrink-0">→</span>
+                          <span className="hidden sm:inline text-gray-400 shrink-0">→</span>
                           <span
                             className="text-emerald-700 dark:text-emerald-400 font-mono truncate"
                             title={c.apres}
@@ -241,7 +242,7 @@ export function Output({
                             {c.apres}
                           </span>
                           <span
-                            className="text-[11px] text-gray-400 dark:text-gray-500 italic truncate text-right"
+                            className="text-[11px] text-gray-400 dark:text-gray-500 italic truncate sm:text-right"
                             title={c.regle}
                           >
                             {c.regle}
@@ -258,9 +259,9 @@ export function Output({
                   type="button"
                   onClick={() => onCopy(outputText)}
                   className="flex-1 flex items-center justify-center gap-2 px-5 py-2.5
-                    bg-gray-900 dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-100
-                    text-white dark:text-gray-900 rounded-xl text-sm font-semibold
-                    transition-all duration-200 shadow-sm hover:shadow-md active:scale-[0.98]"
+                    bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-semibold
+                    shadow-sm shadow-brand-500/25 hover:shadow-md hover:shadow-brand-500/30
+                    transition-all duration-200 active:scale-[0.98]"
                 >
                   <svg
                     aria-hidden="true"
@@ -282,8 +283,8 @@ export function Output({
                     type="button"
                     onClick={onReset}
                     className="px-5 py-2.5 rounded-xl text-sm font-medium
-                      text-gray-500 dark:text-gray-400
-                      hover:bg-gray-100 dark:hover:bg-gray-800
+                      text-gray-500 dark:text-gray-400 border border-gray-200/80 dark:border-gray-700/80
+                      hover:bg-gray-50 dark:hover:bg-gray-800
                       hover:text-gray-700 dark:hover:text-gray-200
                       transition-all duration-200"
                   >

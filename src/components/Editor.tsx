@@ -10,9 +10,9 @@ export function Editor({ text, onChange, onCorrect, isLoading }: Props) {
 
   return (
     <div className="flex-1 flex flex-col min-w-0">
-      <div className="flex-1 p-6 overflow-y-auto">
+      <div className="flex-1 p-4 sm:p-6 overflow-y-auto">
         <div className="max-w-2xl mx-auto h-full flex flex-col">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-end justify-between gap-4 mb-4">
             <div>
               <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
                 Texte à corriger
@@ -22,7 +22,7 @@ export function Editor({ text, onChange, onCorrect, isLoading }: Props) {
               </p>
             </div>
             {charCount > 0 && (
-              <span className="text-xs text-gray-400 dark:text-gray-500 tabular-nums">
+              <span className="text-xs text-gray-400 dark:text-gray-500 tabular-nums shrink-0">
                 {charCount.toLocaleString()} car.
               </span>
             )}
@@ -33,10 +33,11 @@ export function Editor({ text, onChange, onCorrect, isLoading }: Props) {
               value={text}
               onChange={(e) => onChange(e.target.value)}
               placeholder="Collez votre texte ici pour le corriger..."
-              className="w-full h-full min-h-[320px] p-5 bg-white dark:bg-gray-800/80
+              className="w-full h-full min-h-[320px] lg:min-h-[420px] p-5 bg-white dark:bg-gray-800/80
                 border border-gray-200/80 dark:border-gray-700/80
                 rounded-2xl shadow-subtle
-                focus:ring-2 focus:ring-brand-500/20 focus:border-brand-300 dark:focus:border-brand-600
+                focus:outline-none focus:ring-4 focus:ring-brand-500/10 focus:border-brand-400
+                dark:focus:border-brand-600
                 text-gray-900 dark:text-white placeholder-gray-300 dark:placeholder-gray-600
                 resize-none text-[15px] leading-relaxed font-normal
                 transition-all duration-200"
@@ -44,7 +45,7 @@ export function Editor({ text, onChange, onCorrect, isLoading }: Props) {
             />
           </div>
 
-          <div className="mt-4 flex justify-end">
+          <div className="mt-5 flex justify-end">
             <button
               type="button"
               onClick={onCorrect}
@@ -56,7 +57,7 @@ export function Editor({ text, onChange, onCorrect, isLoading }: Props) {
                     ? "bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-600 cursor-not-allowed"
                     : !text.trim()
                       ? "bg-gray-100 dark:bg-gray-800 text-gray-300 dark:text-gray-600 cursor-not-allowed"
-                      : "bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 text-white shadow-sm hover:shadow-md active:scale-[0.98]"
+                      : "bg-brand-600 hover:bg-brand-700 text-white shadow-sm shadow-brand-500/25 hover:shadow-md hover:shadow-brand-500/30 active:scale-[0.98]"
                 }`}
             >
               {isLoading ? (

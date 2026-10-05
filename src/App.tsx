@@ -9,6 +9,8 @@ import { useCorrector } from "./hooks/useCorrector";
 import { useLanguageTool } from "./hooks/useLanguageTool";
 import { initModel } from "./utils/models";
 
+type Pane = "editor" | "output";
+
 function App() {
   const {
     textContent,
@@ -33,6 +35,8 @@ function App() {
 
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [toast, setToast] = useState<Toast | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [activePane, setActivePane] = useState<Pane>("editor");
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -42,6 +46,15 @@ function App() {
       root.classList.remove("dark");
     }
   }, [theme]);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const onChange = () => {
+      if (mq.matches) setSidebarOpen(false);
+    };
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
 
   const handleCopySuccess = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -53,39 +66,82 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50/50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 transition-colors duration-200">
-      <div className="fixed inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-50/40 via-transparent to-transparent dark:from-blue-950/20 pointer-events-none" />
+    <div className="min-h-screen flex flex-col bg-[#f7f9fc] dark:bg-gray-950 text-gray-900 dark:text-gray-100 transition-colors duration-200">
+      <div className="fixed inset-0 -z-10 pointer-events-none bg-[radial-gradient(70%_45%_at_50%_0%,rgba(59,130,246,0.07),transparent_70%)] dark:bg-[radial-gradient(70%_45%_at_50%_0%,rgba(37,99,235,0.14),transparent_70%)]" />
 
       {settings.engine === "lt" && !ltAvailable && <LTSetupBanner />}
-      <Header theme={theme} onToggleTheme={() => setTheme(theme === "light" ? "dark" : "light")} />
+      <Header
+        theme={theme}
+        onToggleTheme={() => setTheme(theme === "light" ? "dark" : "light")}
+        onOpenSettings={() => setSidebarOpen(true)}
+      />
+
+      <div className="md:hidden px-4 pt-3">
+        <div className="flex gap-1 p-1 rounded-xl bg-gray-100/80 dark:bg-gray-800/60 border border-gray-200/70 dark:border-gray-700/60 max-w-md mx-auto">
+          {(
+            [
+              { id: "editor" as const, label: "Texte" },
+              { id: "output" as const, label: "Résultat" },
+            ] satisfies { id: Pane; label: string }[]
+          ).map((tab) => {
+            const isActive = activePane === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActivePane(tab.id)}
+                aria-pressed={isActive}
+                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all duration-200
+                  ${
+                    isActive
+                      ? "bg-white dark:bg-gray-700 text-brand-700 dark:text-brand-300 shadow-sm"
+                      : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                  }`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar settings={settings} setSettings={setSettings} />
-
-        <Editor
-          text={textContent}
-          onChange={setTextContent}
-          onCorrect={handleCorrect}
-          isLoading={isLoading}
+        <Sidebar
+          settings={settings}
+          setSettings={setSettings}
+          open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
         />
 
-        <Output
-          outputText={outputText}
-          corrections={corrections}
-          stats={stats}
-          onCopy={handleCopySuccess}
-          onReset={handleReset}
-          isLoading={isLoading}
-          isLoadingCorrections={isLoadingCorrections}
-        />
+        <main className="flex flex-1 min-w-0 overflow-hidden">
+          <div className={`${activePane === "editor" ? "flex" : "hidden"} md:flex flex-1 min-w-0`}>
+            <Editor
+              text={textContent}
+              onChange={setTextContent}
+              onCorrect={handleCorrect}
+              isLoading={isLoading}
+            />
+          </div>
+          <div className={`${activePane === "output" ? "flex" : "hidden"} md:flex flex-1 min-w-0`}>
+            <Output
+              outputText={outputText}
+              corrections={corrections}
+              stats={stats}
+              onCopy={handleCopySuccess}
+              onReset={handleReset}
+              isLoading={isLoading}
+              isLoadingCorrections={isLoadingCorrections}
+            />
+          </div>
+        </main>
       </div>
 
       {toast && <Toast toast={toast} onClose={() => setToast(null)} />}
 
       {error && (
-        <div className="bg-red-50/80 dark:bg-red-950/30 border-t border-red-200/60 dark:border-red-800/40 backdrop-blur-sm">
-          <div className="flex items-center justify-between max-w-4xl mx-auto px-6 py-4">
-            <div className="flex items-center gap-3">
+        <div className="bg-red-50/90 dark:bg-red-950/40 border-t border-red-200/70 dark:border-red-800/40 backdrop-blur-sm">
+          <div className="flex items-center justify-between gap-4 max-w-5xl mx-auto px-5 py-3.5">
+            <div className="flex items-center gap-3 min-w-0">
               <div className="w-7 h-7 rounded-lg bg-red-100 dark:bg-red-900/40 flex items-center justify-center shrink-0">
                 <svg
                   aria-hidden="true"
@@ -100,12 +156,12 @@ function App() {
                   <path d="M12 9v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+              <p className="text-sm text-red-700 dark:text-red-300 truncate">{error}</p>
             </div>
             <button
               type="button"
               onClick={handleCorrect}
-              className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-all duration-200 active:scale-[0.98]"
+              className="shrink-0 px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-all duration-200 active:scale-[0.98]"
             >
               Réessayer
             </button>
