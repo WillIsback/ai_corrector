@@ -48,7 +48,7 @@ function writeValidWords(words: string[]): void {
 
 Bun.serve({
   port: PORT,
-  async fetch(req: Request): Promise<Response> {
+  async fetch(req: Request, server: Bun.Server): Promise<Response> {
     const url = new URL(req.url);
     const path = url.pathname;
 
@@ -137,6 +137,12 @@ Bun.serve({
       console.log("[LLM] Chat completion via SDK");
       const startTime = Date.now();
 
+      // Large inputs can spend >10s in prefill before the first token. Bun.serve
+      // closes idle connections after 10s by default, which aborted the request
+      // with an HTTP 500 and then crashed the process via the SSE keepalive
+      // (issue #17). Disable the idle timeout for this streaming route only.
+      server.timeout(req, 0);
+
       const span = tracer.startSpan("llm.chat", {
         kind: SpanKind.CLIENT,
       });
@@ -190,20 +196,36 @@ Bun.serve({
           async start(controller) {
             let fullContent = "";
             let textDoneSent = false;
-            const keepaliveIntervalMs = 15_000;
+            // Must stay below Bun.serve's idle timeout (10s default) so the
+            // keepalive actually prevents idle disconnects (issue #17).
+            const keepaliveIntervalMs = 5_000;
             let keepaliveId: ReturnType<typeof setInterval> | null = null;
-
-            function startKeepalive(): void {
-              keepaliveId = setInterval(() => {
-                controller.enqueue(encoder.encode(": keepalive\n\n"));
-              }, keepaliveIntervalMs);
-            }
 
             function stopKeepalive(): void {
               if (keepaliveId) {
                 clearInterval(keepaliveId);
                 keepaliveId = null;
               }
+            }
+
+            // A client disconnect or an idle-timeout close can close the stream
+            // controller while the keepalive interval is still firing. Guard
+            // every enqueue so a closed controller can never throw uncaught and
+            // crash the process (issue #17).
+            function safeEnqueue(chunk: Uint8Array): boolean {
+              try {
+                controller.enqueue(chunk);
+                return true;
+              } catch {
+                stopKeepalive();
+                return false;
+              }
+            }
+
+            function startKeepalive(): void {
+              keepaliveId = setInterval(() => {
+                safeEnqueue(encoder.encode(": keepalive\n\n"));
+              }, keepaliveIntervalMs);
             }
 
             try {
@@ -222,7 +244,7 @@ Bun.serve({
                         .replace(/\\"/g, '"')
                         .replace(/\\\\/g, "\\");
                       const textDuration = Date.now() - startTime;
-                      controller.enqueue(
+                      safeEnqueue(
                         encoder.encode(
                           `data: ${JSON.stringify({ text_done: true, text: extracted, duration: textDuration })}\n\n`,
                         ),
@@ -268,18 +290,20 @@ Bun.serve({
               span.setStatus({ code: SpanStatusCode.OK });
               span.end();
 
-              controller.enqueue(
+              safeEnqueue(
                 encoder.encode(`data: ${JSON.stringify({ done: true, corrections })}\n\n`),
               );
             } catch (err) {
               span.setStatus({ code: SpanStatusCode.ERROR, message: String(err) });
               span.end();
-              controller.enqueue(
-                encoder.encode(`data: ${JSON.stringify({ error: String(err) })}\n\n`),
-              );
+              safeEnqueue(encoder.encode(`data: ${JSON.stringify({ error: String(err) })}\n\n`));
             } finally {
               stopKeepalive();
-              controller.close();
+              try {
+                controller.close();
+              } catch {
+                /* stream already closed by the client */
+              }
             }
           },
         });
