@@ -6,6 +6,7 @@ import { join, resolve } from "node:path";
 import { SpanKind, SpanStatusCode, trace } from "@opentelemetry/api";
 import OpenAI from "openai";
 import { config } from "./config.ts";
+import { parseLlmJson } from "./src/utils/llmJson.ts";
 import { isStreamTeardownError } from "./src/utils/streamErrors.ts";
 
 const tracer = trace.getTracer("ai-corrector");
@@ -179,6 +180,10 @@ Bun.serve({
           model: resolvedModel,
           stream: true,
           top_k: config.llmTopK,
+          // Let vLLM constrain decoding to a JSON object: a prompt instruction
+          // alone is not enough (Nemotron 3.5 emitted unbalanced braces).
+          // Streaming stays token-by-token on current vLLM (see 609a0b0).
+          response_format: { type: "json_object" },
           ...extraParams,
         };
         // biome-ignore lint/suspicious/noExplicitAny: OpenAI SDK requires escape hatch for spread params
@@ -273,12 +278,22 @@ Bun.serve({
               const totalDuration = Date.now() - startTime;
               let outputText = "";
               let corrections: unknown[] = [];
-              try {
-                const parsed = JSON.parse(fullContent);
-                outputText = parsed.texte_corrige ?? parsed.corrected_text ?? fullContent;
-                corrections = Array.isArray(parsed.corrections) ? parsed.corrections : [];
-              } catch {
+              const parsed = parseLlmJson(fullContent);
+              if (parsed) {
+                if (parsed.repaired) {
+                  console.warn(`[LLM] JSON malformé réparé (${resolvedModel})`);
+                }
+                outputText =
+                  parsed.value.texte_corrige ?? parsed.value.corrected_text ?? fullContent;
+                corrections = Array.isArray(parsed.value.corrections)
+                  ? parsed.value.corrections
+                  : [];
+              } else {
                 outputText = fullContent;
+                console.warn(
+                  `[LLM] JSON invalide, corrections perdues (${resolvedModel}): ${fullContent.slice(-200)}`,
+                );
+                span.setAttribute("llm.output.json_invalid", true);
               }
 
               console.log(`[LLM] Stream terminé en ${totalDuration}ms`);
